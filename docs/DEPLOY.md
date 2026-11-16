@@ -58,3 +58,13 @@ Stavy úlohy: queued → leased → printing → printed/failed/unknown. Pred za
 Admin POST `/api/agents/{id}/pause` s `{"paused":true}` pozastaví nové prevzatia; už vydané lease môžu dokončiť start/completion. Pred flash počkaj na ukončenie leased/printing úloh a potom most znovu zapni paused=false.
 
 Admin POST `/api/agents/{id}/refresh` vyžiada čítanie. Agent dostane X-Printer-Refresh pri prázdnom fronte, výsledok hlási cez POST `/api/agent/telemetry`. Obnovovanie je obmedzené na raz za60sekúnd a nikdy nesmie prerušiť tlač. Pre samotný most sa posiela metadátový heartbeat každých30sekúnd. USB PRINTER_INFO vyžiada rovnaké čítanie bez motorových/tlačových príkazov.
+
+## Účty a QR
+
+Pri prázdnej tabuľke users sa vytvorí jednorazový účet admin/admin. Pred použitím štúdia musí používateľ zadať svoj e-mail, prezývku a nové heslo. Po nastavení prestane alias admin platiť. Registrácia je uložená v SQLite, predvolene false; prepínač je v Môj účet → Registrácia účtov a mení ho iba správca. Používatelia zdieľajú front a šablóny. Záloha databázy obsahuje aj účty a relácie.
+
+Web neukladá prihlasovacie tajomstvá do localStorage ani sessionStorage. Relácia používa Secure/HttpOnly/SameSite=Lax cookie s platnosťou 12 hodín.
+
+`PUBLIC_ORIGIN=https://labels.example.com` nahraď vlastnou HTTPS adresou; určuje povolený pôvod požiadaviek za proxy. `MAINTENANCE_CIDRS` obmedzuje pôvodný ADMIN_TOKEN na povolené spojenia; nepovoľuj sieť verejnej reverznej proxy. Kľúč neslúži na webové prihlasovanie. Údržbu možno vykonať zvnútra kontajnera cez http://127.0.0.1:8000 s ADMIN_TOKEN z jeho prostredia. Kontroluje sa skutočná IP spojenia, nie X-Forwarded-For.
+
+QR používa korekciu M, biely okraj štyri moduly a celočíselnú mierku najmenej dva body na modul; nevyhovujúci obsah dostane 422. Pred aktualizáciou vytvor online zálohu databázy. QR a účty nevyžadujú zmenu firmvéru ESP32.

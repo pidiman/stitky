@@ -37,7 +37,7 @@ The suite covers atomic concurrent starts and claims, device isolation, request 
 
 ## Fonts
 
-Label/preview/job/template bodies accept `font`: `sans` (default), `sans-bold`, `serif`, `mono`, `pixel`. SQLite adds font columns with default sans on upgrade, retaining records and rasters. Legacy Sans idempotency fingerprints remain compatible. Pixel font is an authored5×7 uppercase ASCII font; permitted explicit sizes are7,14,21,28,35,42,49,56,63, or0auto. Size21 USB-C example matches the original physical test SHA-256. Test suite now contains27tests.
+Label/preview/job/template bodies accept `font`: `sans` (default), `sans-bold`, `serif`, `mono`, `pixel`. SQLite adds font columns with default sans on upgrade, retaining records and rasters. Legacy Sans idempotency fingerprints remain compatible. Pixel font is an authored5×7 uppercase ASCII font; permitted explicit sizes are7,14,21,28,35,42,49,56,63, or0auto. Size21 USB-C example matches the original physical test SHA-256. The pixel-font tests preserve the original raster.
 
 ## Text formatting and symbols
 
@@ -60,7 +60,7 @@ Admin `POST /api/agents/{id}/refresh` sets a pending probe flag. An idle `POST /
 
 Admin `POST /api/agents/{id}/pause` with `{ "paused": true }` prevents new claims for firmware maintenance. Existing leases may still start/complete so the operator can wait for in-flight jobs to finish before restarting hardware. Completion is always allowed. Unpause with false. This does not cancel or delete queued jobs.
 
-Validation after this expansion: 111 tests passed, covering text styles, all curated symbols across fonts, exact original pixel hash, migrations/idempotency, telemetry isolation/validation, stale-value clearing, refresh and maintenance pause.
+The text-formatting and telemetry suite covers text styles, all curated symbols across fonts, exact original pixel hash, migrations/idempotency, telemetry isolation/validation, stale-value clearing, refresh and maintenance pause.
 
 ## QR and accounts
 
