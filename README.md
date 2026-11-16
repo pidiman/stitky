@@ -45,14 +45,14 @@ Každé ESP32 môže byť v inej LAN. Zariadenia iniciujú spojenia smerom von; 
 | Fonty | DejaVu Sans, Sans Bold, Serif, Sans Mono a pixelové písmo 5 × 7 |
 | Formátovanie | Zarovnanie, tučné, kurzíva, podčiarknutie, medzery, rámik, inverzia |
 | Symboly | Čiernobiele symboly a vybrané emotikony; nepodporované znaky sa odmietnu |
-| QR | Text alebo odkaz, živý náhľad a kontrola čitateľnej veľkosti |
+| QR | Text alebo odkaz, voliteľný popis vedľa QR, živý náhľad a kontrola čitateľnej veľkosti |
 | Šablóny | Uloženie obsahu a štýlov vrátane QR |
 | Front | 1–10 kópií, história, zrušenie čakajúcej úlohy, čakanie na offline most |
 | Zariadenia | Viac ESP32, vlastný kľúč pre každý most, výber cieľa tlače |
 | Telemetria | Skutočne načítaný model, verzia, sériové číslo, batéria a stav P15; údaje mosta |
 | Účty | E-mail, heslo, prezývka, správcom riadená registrácia, spoločný front a šablóny |
 
-Pixelové písmo používa veľké ASCII znaky a nepodporuje diakritiku. Pre slovenčinu vyber TrueType font. QR má vlastné rozloženie a nepoužíva textové štýly.
+Pixelové písmo používa veľké ASCII znaky a nepodporuje diakritiku. Pre slovenčinu vyber TrueType font. QR má vlastné rozloženie. Jeho voliteľný popis používa zvolené písmo a textové štýly; samotný kód zostáva čierny na bielom.
 
 ## Stavová LED ESP32
 
@@ -147,6 +147,6 @@ npm --prefix web ci
 npm --prefix web run build
 ```
 
-Mimo Dockera nainštaluj aj fonty DejaVu. Hostiteľské C++ kontroly a zostavenie firmvéru sú v [ESP32 návode](firmware/README.md). Posledná kontrola zdrojového stavu zahŕňala 129 testov API/provisioningu a zostavenie webu. Dokumentačné úpravy samy nespúšťajú tlač ani nahratie firmvéru.
+Mimo Dockera nainštaluj aj fonty DejaVu. Hostiteľské C++ kontroly a zostavenie firmvéru sú v [ESP32 návode](firmware/README.md). Posledná kontrola zdrojového stavu zahŕňala 146 testov API/provisioningu a zostavenie webu. Dokumentačné úpravy samy nespúšťajú tlač ani nahratie firmvéru.
 
 MVP má pevný profil P15. Všeobecné obrázky, ľubovoľné čiarové kódy a rozmery, oddelené priestory používateľov a hotový RPi agent nie sú súčasťou tejto verzie.

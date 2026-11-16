@@ -46,7 +46,7 @@ sequenceDiagram
 
 Používa sa pevný profil 40 × 12 mm. Náhľad má 320 × 96 bodov. Pre tlač sa otočí doprava na 96 × 320 bodov a zabalí MSB-first, čierny bod = 1. Raster má presne **3840 bajtov**. ESP32 overuje rozmery, veľkosť a SHA-256 pred tlačou.
 
-Text vykresľuje server s DejaVu alebo autorským pixelovým fontom. QR používa ten istý výstupný obraz a raster. Pri zmene UI alebo fontu sa už uložený raster existujúcej úlohy neprekresľuje.
+Text vykresľuje server s DejaVu alebo autorským pixelovým fontom. QR používa ten istý výstupný obraz a raster. S nepovinným popisom je celý QR vrátane tichého okraja v ľavom priestore 96 × 96 bodov; text sa vykreslí do priestoru 212 × 96 bodov od x=108, s vlastnými 12-bodovými okrajmi. Mierka modulov sa kvôli popisu nezmenšuje. Pri zmene UI alebo fontu sa už uložený raster existujúcej úlohy neprekresľuje.
 
 ## Rezervácia a prevencia duplicít
 

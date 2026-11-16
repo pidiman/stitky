@@ -44,6 +44,7 @@ def digest(value: str | bytes) -> str:
 class Label(BaseModel):
     text: str = Field(min_length=1, max_length=200)
     kind: Literal["text", "qr"] = "text"
+    qr_caption: str = Field(default="", max_length=120)
     font_size: int = Field(default=0, ge=0, le=64)
     font: Literal["sans", "sans-bold", "serif", "mono", "pixel"] = "sans"
     align: Literal["left", "center", "right"] = "center"
@@ -62,6 +63,16 @@ class Label(BaseModel):
             raise ValueError("Text must contain printable characters")
         if len(value.splitlines()) > 4:
             raise ValueError("At most four lines are supported")
+        return value
+
+    @field_validator("qr_caption")
+    @classmethod
+    def validate_caption(cls, value: str) -> str:
+        if any(ord(c) < 32 and c != "\n" for c in value):
+            raise ValueError("Popis QR musí obsahovať iba tlačiteľné znaky.")
+        value = value.strip()
+        if len(value.splitlines()) > 4:
+            raise ValueError("Popis QR môže mať najviac štyri riadky.")
         return value
 
     @field_validator("font_size")
@@ -148,6 +159,8 @@ def font_path(family: str = "sans", bold: bool = False, italic: bool = False) ->
 
 def render_label(label: Label) -> tuple[bytes, bytes]:
     try:
+        if label.kind != "qr" and label.qr_caption:
+            raise ValueError("Popis QR je dostupný iba pri QR štítku.")
         if label.kind == "qr":
             if label.invert or label.border:
                 raise ValueError('QR kód nepodporuje inverziu ani rámik; zachovaj jeho biely okraj.')
@@ -156,10 +169,17 @@ def render_label(label: Label) -> tuple[bytes, bytes]:
             matrix=qr.get_matrix(); side=len(matrix); scale=96//side
             if scale<2:raise ValueError('QR kód je na 12 mm štítok príliš hustý. Použi kratší text alebo odkaz.')
             image=Image.new('1',(320,96),1); draw=ImageDraw.Draw(image)
-            left=(320-side*scale)//2; top=(96-side*scale)//2
+            left=((96 if label.qr_caption else 320)-side*scale)//2; top=(96-side*scale)//2
             for y,row in enumerate(matrix):
                 for x,black in enumerate(row):
                     if black:draw.rectangle((left+x*scale,top+y*scale,left+(x+1)*scale-1,top+(y+1)*scale-1),fill=0)
+            if label.qr_caption:
+                caption = label.model_copy(update={"text": label.qr_caption, "kind": "text", "qr_caption": ""})
+                try:
+                    caption_image = render_canvas(caption, font_path, width=212, height=96)
+                except ValueError as exc:
+                    raise ValueError("Popis vedľa QR: " + str(exc)) from exc
+                image.paste(caption_image, (108, 0))
         else:
             image = render_canvas(label, font_path)
     except ValueError as exc:
@@ -270,7 +290,7 @@ def create_app(config: dict | None = None) -> FastAPI:
             return row["id"]
 
     def stored_style(row):
-        return {"kind":"text", **STYLE_DEFAULTS, **json.loads(row["style_json"] or "{}")}
+        return {"kind":"text", "qr_caption":"", **STYLE_DEFAULTS, **json.loads(row["style_json"] or "{}")}
 
     def public_job(row):
         return {**{k: row[k] for k in ("id", "agent_id", "text", "font_size", "font", "status", "created_at", "updated_at", "message")}, **stored_style(row)}
@@ -349,6 +369,8 @@ def create_app(config: dict | None = None) -> FastAPI:
     def enqueue(body: JobInput):
         fingerprint_body = body.model_dump(exclude={"idempotency_key", *STYLE_DEFAULTS})
         fingerprint_body.update({key: value for key, value in style_dict(body).items() if value != STYLE_DEFAULTS[key]})
+        if not body.qr_caption:
+            fingerprint_body.pop("qr_caption")  # Preserve existing text and QR request fingerprints.
         if body.kind == "text":
             fingerprint_body.pop("kind")
         if body.font == "sans":
@@ -367,7 +389,7 @@ def create_app(config: dict | None = None) -> FastAPI:
             now = utc()
             for _ in range(body.copies):
                 job_id = str(uuid.uuid4())
-                conn.execute("INSERT INTO jobs(id,agent_id,text,font_size,font,raster,style_json,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,'queued',?,?)", (job_id, body.agent_id, body.text, body.font_size, body.font, raster, json.dumps({**style_dict(body), "kind":body.kind}), now, now))
+                conn.execute("INSERT INTO jobs(id,agent_id,text,font_size,font,raster,style_json,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,'queued',?,?)", (job_id, body.agent_id, body.text, body.font_size, body.font, raster, json.dumps({**style_dict(body), "kind":body.kind, "qr_caption":body.qr_caption}), now, now))
                 ids.append(job_id)
             conn.execute("INSERT INTO requests VALUES(?,?,?)", (body.idempotency_key, fingerprint, json.dumps(ids)))
             return [public_job(conn.execute("SELECT * FROM jobs WHERE id=?", (identifier,)).fetchone()) for identifier in ids]
@@ -400,7 +422,7 @@ def create_app(config: dict | None = None) -> FastAPI:
         render_label(body)
         template_id = str(uuid.uuid4())
         with transaction() as conn:
-            conn.execute("INSERT INTO templates(id,name,text,font_size,font,style_json) VALUES(?,?,?,?,?,?)", (template_id, body.name, body.text, body.font_size, body.font, json.dumps({**style_dict(body), "kind":body.kind})))
+            conn.execute("INSERT INTO templates(id,name,text,font_size,font,style_json) VALUES(?,?,?,?,?,?)", (template_id, body.name, body.text, body.font_size, body.font, json.dumps({**style_dict(body), "kind":body.kind, "qr_caption":body.qr_caption})))
         return {"id": template_id, **body.model_dump()}
 
     @app.delete("/api/templates/{template_id}", dependencies=[Depends(admin)])

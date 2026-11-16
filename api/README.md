@@ -99,3 +99,11 @@ Paths below describe the current implementation. Built-in OpenAPI/Swagger UI is 
 The separate maintenance bearer can access studio/administrator operations only subject to its configured network restriction. Do not embed it into browser storage or public examples.
 
 Common responses: 401 unauthenticated; 403 unauthorized, unfinished setup or CSRF/origin rejection; 409 conflicting job state, duplicate account or idempotency conflict; 422 invalid content or schema; 429 login throttling. Inspect the response detail rather than retrying a physical print blindly.
+
+## QR captions
+
+`qr_caption` is optional and defaults to an empty string. For `kind: qr`, a nonempty caption places the complete QR in the left 96 × 96 region and text in the right 212 × 96 region starting at x=108. The QR keeps the same integer module scale and four-module quiet zone. Empty/whitespace-only captions retain the original centered QR layout.
+
+Captions accept up to 120 characters and four lines; surrounding whitespace is trimmed. Font, font_size, align, bold, italic, underline and spacing apply to the caption. Border and inversion remain forbidden for QR. Overflow or unsupported characters return 422; a nonempty caption on a text-only label is rejected.
+
+Captions persist in job/template style_json without a schema change. Existing records default to an empty caption, existing stored rasters stay unchanged and empty captions preserve legacy request fingerprints. Preview and print raster share identical pixels. Firmware changes are not required.

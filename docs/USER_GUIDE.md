@@ -49,10 +49,11 @@ Vybrané bežné emoji majú monochromatické ekvivalenty. Farebné emoji, zlož
 
 1. Prepni editor na QR.
 2. Vlož text alebo celý odkaz, napríklad `https://example.com`.
-3. Počkaj na serverový náhľad.
-4. Vyber zariadenie, kópie a odošli do frontu.
+3. Voliteľne vyplň **Popis vedľa QR kódu**. QR zostane vľavo, popis sa vytlačí vpravo. Bez popisu je QR na strede.
+4. Pre popis môžeš vybrať font, veľkosť, zarovnanie a textový štýl. Počkaj na serverový náhľad.
+5. Vyber zariadenie, kópie a odošli do frontu.
 
-QR sa vycentruje na štítku a má biely okraj štyri moduly. Server používa korekciu M a celočíselnú mierku aspoň dva tlačové body na modul. Príliš dlhý alebo hustý obsah odmietne. Skráť ho; nevynucuj menší nečitateľný kód. Textové štýly, inverzia a voľba fontu sa na QR nepoužívajú.
+QR sa vycentruje na štítku a má biely okraj štyri moduly. Server používa korekciu M a celočíselnú mierku aspoň dva tlačové body na modul. Príliš dlhý alebo hustý obsah odmietne. Skráť ho; nevynucuj menší nečitateľný kód. Písmo a textové štýly sa používajú iba na popis. Inverzia a rámik zostávajú pre QR štítok vypnuté, aby sa zachoval biely okraj. Popis môže mať najviac 120 znakov a štyri riadky; príliš veľký text sa odmietne namiesto orezania.
 
 Aj QR podlieha limitu obsahu 200 znakov; praktický limit podľa hustoty môže byť nižší. Pred dôležitým použitím skontroluj načítanie fyzického štítku vlastnou čítačkou.
 
