@@ -1,5 +1,7 @@
 # P15 Hub API
 
+[Project](../README.md) · [Architecture](../docs/ARCHITECTURE.md) · [Deployment](../docs/DEPLOY.md)
+
 Python 3.12+; install `requirements.txt` and a TrueType font. Production image should install `fonts-dejavu-core`. `FONT_PATH` can override its location. API port 8000, one Uvicorn worker recommended for the small deployment; SQLite synchronizes independent connections with immediate transactions and WAL.
 
 Required environment: separate random `ADMIN_TOKEN` and `AGENT_TOKEN`, each at least 24 characters. Optional: `AGENT_ID=esp32-01`, `AGENT_NAME=P15 · ESP32`, `DB_PATH=/data/p15.sqlite3`, `WEB_DIR=../web/dist`. Tokens are never returned by list endpoints. Agent tokens are stored as SHA-256 hashes. Initial agent token is synchronized from environment on startup, permitting deliberate rotation; dynamically registered agent tokens persist in SQLite.
@@ -65,3 +67,35 @@ The text-formatting and telemetry suite covers text styles, all curated symbols 
 ## QR and accounts
 
 Labels accept `kind: text|qr` (default text). QR content is encoded into the same monochrome preview and print raster with an integer module scale and quiet zone. Overly dense content returns 422. User accounts use Argon2 password hashes, server-side sessions, forced bootstrap setup, login throttling and an administrator-only registration toggle. Shared printer workspace is intentional in this MVP.
+
+## Endpoint map
+
+Paths below describe the current implementation. Built-in OpenAPI/Swagger UI is disabled. Studio access means an authenticated, fully configured user session; mutating session requests need X-CSRF-Token.
+
+| Method and path | Access | Purpose |
+|---|---|---|
+| GET /api/health | Public | API and database health |
+| GET /api/auth/config | Public | Registration availability |
+| POST /api/auth/login | Public | Login and issue session |
+| GET /api/auth/me | Session | Current user and CSRF token |
+| POST /api/auth/setup | Bootstrap session + CSRF | Mandatory first account setup |
+| POST /api/auth/logout | Session + CSRF | Revoke current session |
+| POST /api/auth/register | Public, only when enabled | Create ordinary user account |
+| GET, PUT /api/auth/settings | Administrator | Read/change registration setting |
+| POST /api/preview | Studio | Render monochrome PNG |
+| GET, POST /api/jobs | Studio | List recent jobs / create jobs |
+| POST /api/jobs/{id}/cancel | Studio | Cancel queued job |
+| GET, POST /api/templates | Studio | List / save templates |
+| DELETE /api/templates/{id} | Studio | Remove template |
+| GET /api/agents | Studio | Devices and telemetry |
+| POST /api/agents | Administrator | Create device and reveal token once |
+| POST /api/agents/{id}/pause | Administrator | Pause/unpause future claims |
+| POST /api/agents/{id}/refresh | Studio | Request printer information read |
+| POST /api/agent/claim | Device bearer | Claim own next job or return 204 |
+| POST /api/agent/jobs/{id}/start | Device bearer + lease | Authorize first physical attempt |
+| POST /api/agent/jobs/{id}/complete | Device bearer + lease | Report terminal outcome |
+| POST /api/agent/telemetry | Device bearer | Report bridge/printer data |
+
+The separate maintenance bearer can access studio/administrator operations only subject to its configured network restriction. Do not embed it into browser storage or public examples.
+
+Common responses: 401 unauthenticated; 403 unauthorized, unfinished setup or CSRF/origin rejection; 409 conflicting job state, duplicate account or idempotency conflict; 422 invalid content or schema; 429 login throttling. Inspect the response detail rather than retrying a physical print blindly.

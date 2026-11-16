@@ -1,6 +1,52 @@
 # Nasadenie a správa
 
-## Oracle Free VPS
+[Projekt](../README.md) · [Používanie](USER_GUIDE.md) · [ESP32](../firmware/README.md) · [Diagnostika](TROUBLESHOOTING.md)
+
+## Čerstvá inštalácia
+
+Server potrebuje Docker Engine s Compose, dostupnú HTTPS doménu a reverznú proxy. Zariadenia potrebujú prístup na túto adresu z vlastných sietí.
+
+```sh
+git clone https://github.com/pidiman/stitky.git
+cd stitky
+cp .env.example .env
+chmod 600 .env
+```
+
+Do `.env` vlož dva samostatne vygenerované náhodné kľúče. Príklad lokálneho generovania jednej hodnoty:
+
+```sh
+python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+Spusti ho pre každý kľúč osobitne a hodnoty ulož súkromne. Potom nastav vlastný PUBLIC_ORIGIN a spusti:
+
+```sh
+docker compose up -d --build --wait
+docker compose ps
+curl http://127.0.0.1:8094/api/health
+```
+
+Samostatný compose.yaml publikuje službu iba na loopback. `http://127.0.0.1:8094` slúži na lokálnu kontrolu; na používanie štúdia nastav HTTPS. Cookie účtu má príznak Secure.
+
+Ak proxy beží na tom istom hostiteľovi, môže smerovať na 127.0.0.1:8094. Ak beží v Docker kontajneri, jej 127.0.0.1 nie je hostiteľ: pripoj proxy a hub do spoločnej siete podľa voliteľného override a príkladu Caddy. Nahraď doménu aj príkladovú adresu. Verejné DNS musí smerovať na server, ku ktorému sa dostanú prehliadač aj ESP32.
+
+## Premenné prostredia
+
+| Premenná | Význam |
+|---|---|
+| ADMIN_TOKEN | Náhodný údržbový kľúč, aspoň 24 znakov; nie webové heslo |
+| AGENT_TOKEN | Iný náhodný kľúč prvého ESP32, aspoň 24 znakov |
+| AGENT_ID | ID prvého mosta, predvolene esp32-01 |
+| AGENT_NAME | Zobrazovaný názov prvého mosta |
+| PUBLIC_ORIGIN | Presný pôvod webu, napríklad https://labels.example.com |
+| MAINTENANCE_CIDRS | Zoznam povolených sietí pre údržbový bearer prístup |
+| DB_PATH | Vo vnútri kontajnera /data/p15.sqlite; trvalé dáta vo volume |
+| WEB_DIR | Vo vnútri obrazu /app/web/dist |
+
+DB_PATH a WEB_DIR už nastavuje compose. Pri vlastnom spustení mimo Dockera musíš zabezpečiť zapisovateľný dátový adresár, zostavený web a DejaVu fonty. `.env` sa necommituje; `.env.example` zostáva verejná bez reálnych hodnôt.
+
+## Voliteľný profil VPS / Oracle
 
 Príklady používajú `labels.example.com`, Tailscale adresu `100.64.0.1` a adresár `/srv/p15-hub`. Nahraď ich vlastnými hodnotami. Nastav DNS svojho webu a HTTPS reverznú proxy podľa `Caddyfile.example`. Voliteľný `compose.oracle.yaml` pripája existujúcu externú Docker sieť `web` a publikuje port na príkladovej Tailscale adrese; uprav ju pred použitím.
 
@@ -68,3 +114,27 @@ Web neukladá prihlasovacie tajomstvá do localStorage ani sessionStorage. Relá
 `PUBLIC_ORIGIN=https://labels.example.com` nahraď vlastnou HTTPS adresou; určuje povolený pôvod požiadaviek za proxy. `MAINTENANCE_CIDRS` obmedzuje pôvodný ADMIN_TOKEN na povolené spojenia; nepovoľuj sieť verejnej reverznej proxy. Kľúč neslúži na webové prihlasovanie. Údržbu možno vykonať zvnútra kontajnera cez http://127.0.0.1:8000 s ADMIN_TOKEN z jeho prostredia. Kontroluje sa skutočná IP spojenia, nie X-Forwarded-For.
 
 QR používa korekciu M, biely okraj štyri moduly a celočíselnú mierku najmenej dva body na modul; nevyhovujúci obsah dostane 422. Pred aktualizáciou vytvor online zálohu databázy. QR a účty nevyžadujú zmenu firmvéru ESP32.
+
+## Aktualizácia existujúceho servera
+
+1. Skontroluj prebiehajúce úlohy a naplánuj krátky výpadok servera. Nevytváraj ďalšie tlače počas údržby.
+2. Vytvor online zálohu databázy podľa návodu vyššie a bezpečne uchovaj aktuálnu `.env`.
+3. V pracovnej kópii skontroluj vlastné úpravy a načítaj novú verziu:
+
+```sh
+git status --short
+git pull --ff-only
+docker compose up -d --build --wait
+docker compose ps
+docker compose logs --tail 100 hub
+```
+
+Pri použití override pridaj rovnaké `-f compose.yaml -f compose.oracle.yaml` ku všetkým compose príkazom. Zachovaj názov projektu a dátový volume, aby sa omylom nevytvorila prázdna databáza pod iným projektom. Nesťahuj vzorovú `.env` cez súkromné nastavenia.
+
+Skontroluj health, prihlásenie, existujúce šablóny, front a návrat mosta online. Aktualizácia webu/API nevyžaduje automatické nahratie ESP32; firmvér aktualizuj len vtedy, keď sa zmenil a zariadenie nemá rozpracovanú tlač. Pred nahratím firmvéru pozastav nové preberanie cez administrátorské API a počkaj na ukončenie leased/printing úloh. Potom most znovu povoľ.
+
+## Obnova zo zálohy
+
+Zastav službu hub, obnov databázu do pôvodného dátového volume a nastav vlastníctvo pre UID 10001. Pri obnove nesmú vedľa obnovenej databázy zostať nesúvisiace staré WAL/SHM súbory. Tento zásah rob nad overenou zálohou a pri zastavenej službe. Potom službu spusti a over účty, šablóny, zariadenia aj front.
+
+Serverová databáza a NVS mosta tvoria stav rozpracovaných úloh. Návrat k staršej zálohe môže byť v rozpore s pending záznamom na ESP32; pred pokračovaním posúď históriu a fyzické výtlačky. Obnova nie je pokyn na opakované vytlačenie starých úloh.
