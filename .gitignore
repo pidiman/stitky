@@ -1,0 +1,18 @@
+.env
+.env.*
+!.env.example
+**/node_modules/
+**/dist/
+**/.pio/
+**/__pycache__/
+**/.pytest_cache/
+**/*.sqlite*
+*.log
+private/
+
+# Local build outputs and editor files
+**/*.bin
+**/*.pyc
+**/.venv/
+**/.vscode/
+.DS_Store

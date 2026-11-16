@@ -1,0 +1,29 @@
+name: p15-hub
+services:
+  hub:
+    build: .
+    restart: unless-stopped
+    init: true
+    ports:
+      - "127.0.0.1:8094:8000"
+    environment:
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?Set ADMIN_TOKEN in .env}
+      AGENT_ID: ${AGENT_ID:-esp32-01}
+      AGENT_NAME: ${AGENT_NAME:-ESP32 pri P15}
+      AGENT_TOKEN: ${AGENT_TOKEN:?Set AGENT_TOKEN in .env}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-https://labels.example.com}
+      MAINTENANCE_CIDRS: ${MAINTENANCE_CIDRS:-127.0.0.1/32,::1/128,100.64.0.0/10}
+      DB_PATH: /data/p15.sqlite
+      WEB_DIR: /app/web/dist
+    volumes:
+      - data:/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      options:
+        max-size: "5m"
+        max-file: "2"
+volumes:
+  data:

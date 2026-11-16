@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+**/node_modules
+**/.pio
+**/__pycache__
+**/.pytest_cache
+**/*.sqlite*
+firmware
+web/dist
+.git

@@ -1,0 +1,14 @@
+# Add this independent host block to the existing Caddyfile.
+labels.example.com {
+    tls {
+        ca https://acme-v02.api.letsencrypt.org/directory
+    }
+    encode zstd gzip
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy same-origin
+        X-Frame-Options DENY
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    }
+    reverse_proxy p15-hub-hub-1:8000
+}

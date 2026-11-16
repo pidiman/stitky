@@ -1,0 +1,10 @@
+services:
+  hub:
+    networks:
+      - default
+      - web
+    ports:
+      - "100.64.0.1:8094:8000"
+networks:
+  web:
+    external: true
