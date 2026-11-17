@@ -22,6 +22,7 @@ int main(){
  assert(std::vector<uint8_t>(actual.begin()+27,actual.begin()+27+sizeof(raster))==std::vector<uint8_t>(raster,raster+sizeof(raster)));
  assert(std::vector<uint8_t>(actual.end()-6,actual.end())==std::vector<uint8_t>({0x1d,0x0c,0x10,0xff,0xf1,0x45}));
  assert(t.phase()==Transfer::Phase::Ack&&t.percent()==100);t.notify(false,ok,2);assert(t.phase()==Transfer::Phase::Done);
+ uint8_t late_fault[]={0xff,2};t.notify(false,late_fault,2);assert(t.phase()==Transfer::Phase::Failed);
  t.reset(raster,100);t.notify(true,credits,2);t.notify(false,(const uint8_t*)"BAD",3);assert(t.phase()!=Transfer::Phase::Done);
  uint8_t fault[]={0xff,2};t.notify(false,fault,2);assert(t.phase()==Transfer::Phase::Failed&&!t.sent());
  t.reset(raster,0xfffffff0);t.tick(20);assert(t.phase()!=Transfer::Phase::Failed);t.tick(50000);assert(t.phase()==Transfer::Phase::Failed);

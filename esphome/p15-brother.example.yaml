@@ -17,6 +17,8 @@ esp32_ble_tracker:
   id: p15_scanner
   scan_parameters:
     continuous: false
+    interval: 320ms
+    window: 30ms
 ble_client:
   - id: p15_client
     mac_address: !secret fajny_p15_mac

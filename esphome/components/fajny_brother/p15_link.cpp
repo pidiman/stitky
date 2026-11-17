@@ -34,6 +34,8 @@ void P15Link::tick(bool cancel){
     transfer_.reset(raster_.data(),now);began_=stage_at_=now;stage_=Enable;ble_->enable();status_("P15: ZAPINAM BLUETOOTH");
   }
   if(stage_==Idle)return;
+  // A valid completion may be immediately followed by CLOSE in the same BLE event batch.
+  if(stage_==Print&&transfer_.phase()==FajnyP15::Transfer::Phase::Done&&!cancel&&!cancel_&&!link_error_)finish_(Printed);
   if(stage_!=Disconnect&&stage_!=Disable&&(cancel||cancel_||link_error_||disconnected_||uint32_t(now-began_)>70000)){
     finish_(printing_&&transfer_.sent()?Uncertain:Unavailable);
   }
