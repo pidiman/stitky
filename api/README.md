@@ -126,3 +126,11 @@ Telemetry accepts media_ready as a bounded printable string, clears stale media 
 - `GET /api/agent/firmware/{id}/image`: iba pridelené zariadenie počas inštalácie; binárny obraz, žiadny verejný odkaz.
 
 Stavy: `queued` → `installing` → `succeeded` po overení obrazu po reštarte; `failed`, `unknown` alebo `cancelled` pri neúspechu. Aktívna aktualizácia dočasne blokuje pridávanie tlače aj claim všetkých agentov; limit 10 minút uvoľní prestávku bez opakovania neistého zápisu. Nová telemetria hlavného mosta pridáva `ota_supported`, `ota_layout` a `ota_slot`. [Podrobnosti a limity](../docs/OTA.md).
+
+### GitHub firmware source (server 0.4.1)
+
+- `GET /api/firmware/github`: prihlásený používateľ, kontrola pevného repozitára `pidiman/stitky`; výsledok `release`, `checked_at`, `error`. Používa zdieľanú 5-minútovú cache.
+- `POST /api/firmware/github/check`: správca + CSRF, explicitná obnova s minimálnym odstupom 60 sekúnd.
+- `POST /api/firmware/github/install`: správca + CSRF, JSON `agent_id`, `version`, `sha256` z poslednej kontroly. Vyžaduje novšiu stabilnú verziu, online kompatibilné zariadenie a prázdny front. Server sám stiahne a overí obraz; opätovne preverí stav tlače po sťahovaní a až potom založí OTA úlohu.
+
+Súbory sa sťahujú len z pevného repozitára cez HTTPS; presmerovania sú obmedzené na GitHub a jeho úložisko vydaní. JSON a obraz majú samostatné limity veľkosti a sťahovanie je časovo obmedzené. Chýbajúci/nekompatibilný manifest, nezhoda súčtov, zastaraný výber alebo nedostupný zdroj nevyvolajú inštaláciu. Koncepty a prerelease vydania sa neponúkajú.

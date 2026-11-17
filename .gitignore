@@ -16,3 +16,6 @@ private/
 **/.venv/
 **/.vscode/
 .DS_Store
+
+# Local firmware release packages
+/release/

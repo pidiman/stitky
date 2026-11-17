@@ -9,6 +9,11 @@ import uuid
 from fastapi import Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
+try:
+    from .github_firmware import GitHubFirmwareSource, SourceError, version_tuple
+except ImportError:
+    from github_firmware import GitHubFirmwareSource, SourceError, version_tuple
+
 LAYOUT = 'dual1856-v1'
 MAX_IMAGE = 0x1D0000
 ACTIVE = ('queued', 'installing', 'rebooting')
@@ -19,6 +24,8 @@ def initialize(c):
     CREATE TABLE IF NOT EXISTS firmware_releases (
       sha256 TEXT PRIMARY KEY, version TEXT NOT NULL, size INTEGER NOT NULL,
       image BLOB NOT NULL, created_at REAL NOT NULL);
+    CREATE TABLE IF NOT EXISTS firmware_source_cache (
+      id INTEGER PRIMARY KEY CHECK(id=1), checked_at REAL, last_attempt REAL NOT NULL, payload TEXT NOT NULL, error TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS firmware_updates (
       id TEXT PRIMARY KEY, agent_id TEXT NOT NULL REFERENCES agents(id),
       sha256 TEXT NOT NULL REFERENCES firmware_releases(sha256), state TEXT NOT NULL,
@@ -72,6 +79,12 @@ class Install(BaseModel):
     sha256: str = Field(pattern=r'^[0-9a-f]{64}$')
 
 
+class GitHubInstall(BaseModel):
+    agent_id: str = Field(min_length=1, max_length=80)
+    version: str = Field(min_length=1, max_length=32)
+    sha256: str = Field(pattern=r'^[0-9a-f]{64}$')
+
+
 class Check(BaseModel):
     version: str = Field(min_length=1, max_length=64)
     layout: str = Field(max_length=32)
@@ -81,6 +94,7 @@ class Check(BaseModel):
 
 
 def install(app, transaction, admin, administrator, device):
+    source = GitHubFirmwareSource(transaction)
     @app.get('/api/firmware', dependencies=[Depends(admin)])
     def status():
         with transaction() as c:
@@ -103,27 +117,72 @@ def install(app, transaction, admin, administrator, device):
             c.execute('INSERT OR IGNORE INTO firmware_releases VALUES(?,?,?,?,?)', (sha, version, len(image), image, time.time()))
         return {'sha256': sha, 'version': version, 'size': len(image)}
 
+    def target_ready(c, agent_id):
+        if active(c):
+            raise HTTPException(409, 'Už prebieha aktualizácia ESP32.')
+        if c.execute("SELECT 1 FROM jobs WHERE status IN ('queued','leased','printing') LIMIT 1").fetchone():
+            raise HTTPException(409, 'Najprv dokonči alebo zruš všetky čakajúce tlačové úlohy.')
+        target = c.execute('SELECT * FROM agents WHERE id=?', (agent_id,)).fetchone()
+        if not target:
+            raise HTTPException(404, 'Zariadenie sa nenašlo.')
+        telemetry = json.loads(target['telemetry_json'])
+        if not target['last_seen'] or time.time() - target['last_seen'] > 45:
+            raise HTTPException(409, 'ESP32 musí byť online.')
+        if not telemetry.get('ota_supported') or telemetry.get('ota_layout') != LAYOUT:
+            raise HTTPException(409, 'Toto ESP32 najprv potrebuje jednorazovú USB inštaláciu podpory OTA.')
+        return telemetry
+
+    def schedule(c, agent_id, sha):
+        if not c.execute('SELECT 1 FROM firmware_releases WHERE sha256=?', (sha,)).fetchone():
+            raise HTTPException(404, 'Firmvér sa nenašiel.')
+        identifier = str(uuid.uuid4()); now = time.time()
+        c.execute('INSERT INTO firmware_updates VALUES(?,?,?,?,?,?,?,?)',
+                  (identifier, agent_id, sha, 'queued', 'Čaká na prevzatie ESP32.', now, now, now + 600))
+        return {'id': identifier}
+
     @app.post('/api/firmware/updates', dependencies=[Depends(administrator)], status_code=201)
     def start(body: Install):
         with transaction() as c:
-            if active(c):
-                raise HTTPException(409, 'Už prebieha aktualizácia ESP32.')
-            if c.execute("SELECT 1 FROM jobs WHERE status IN ('queued','leased','printing') LIMIT 1").fetchone():
-                raise HTTPException(409, 'Najprv dokonči alebo zruš všetky čakajúce tlačové úlohy.')
-            target = c.execute('SELECT * FROM agents WHERE id=?', (body.agent_id,)).fetchone()
-            if not target:
-                raise HTTPException(404, 'Zariadenie sa nenašlo.')
-            telemetry = json.loads(target['telemetry_json'])
-            if not target['last_seen'] or time.time() - target['last_seen'] > 45:
-                raise HTTPException(409, 'ESP32 musí byť online.')
-            if not telemetry.get('ota_supported') or telemetry.get('ota_layout') != LAYOUT:
-                raise HTTPException(409, 'Toto ESP32 najprv potrebuje jednorazovú USB inštaláciu podpory OTA.')
-            if not c.execute('SELECT 1 FROM firmware_releases WHERE sha256=?', (body.sha256,)).fetchone():
-                raise HTTPException(404, 'Firmvér sa nenašiel.')
-            identifier = str(uuid.uuid4()); now = time.time()
-            c.execute('INSERT INTO firmware_updates VALUES(?,?,?,?,?,?,?,?)',
-                      (identifier, body.agent_id, body.sha256, 'queued', 'Čaká na prevzatie ESP32.', now, now, now + 600))
-        return {'id': identifier}
+            target_ready(c, body.agent_id)
+            return schedule(c, body.agent_id, body.sha256)
+
+    @app.get('/api/firmware/github', dependencies=[Depends(admin)])
+    def github_status():
+        return source.latest()
+
+    @app.post('/api/firmware/github/check', dependencies=[Depends(administrator)])
+    def github_check():
+        return source.latest(force=True)
+
+    @app.post('/api/firmware/github/install', dependencies=[Depends(administrator)], status_code=201)
+    def github_install(body: GitHubInstall):
+        latest = source.latest(force=True)
+        release = latest['release']
+        if latest['error']:
+            raise HTTPException(502, latest['error'])
+        if not release:
+            raise HTTPException(404, 'Na GitHube zatiaľ nie je vydaný kompatibilný firmvér.')
+        if body.version != release['version'] or body.sha256 != release['sha256']:
+            raise HTTPException(409, 'Vydanie na GitHube sa zmenilo. Skontroluj aktualizácie znova.')
+        def require_newer(telemetry):
+            try:
+                newer = version_tuple(release['version']) > version_tuple(telemetry.get('firmware_version'))
+            except SourceError:
+                raise HTTPException(409, 'Aktuálna verzia ESP32 nie je známa. Obnov údaje zariadenia.') from None
+            if not newer:
+                raise HTTPException(409, 'ESP32 už má rovnaký alebo novší firmvér.')
+        with transaction() as c:
+            require_newer(target_ready(c, body.agent_id))
+        try:
+            image = source.image(release)
+        except SourceError as e:
+            raise HTTPException(502, str(e)) from None
+        sha = validate_image(image, release['version'])
+        with transaction() as c:
+            # Recheck after the network request: printing may have started meanwhile.
+            require_newer(target_ready(c, body.agent_id))
+            c.execute('INSERT OR IGNORE INTO firmware_releases VALUES(?,?,?,?,?)', (sha, release['version'], len(image), image, time.time()))
+            return schedule(c, body.agent_id, sha)
 
     @app.post('/api/firmware/updates/{identifier}/cancel', dependencies=[Depends(administrator)])
     def cancel(identifier: str):

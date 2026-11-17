@@ -4,10 +4,22 @@
 
 Od servera **0.4.0** a firmvéru **2.0.0** môže správca aktualizovať ESP32 priamo v štúdiu, v časti **Aktualizácie → Aktualizácia ESP32 cez Wi-Fi**. Aktualizuje sa celý most vrátane podpory P15 a Brothera. ESP32 si firmvér sťahuje cez odchádzajúce overené HTTPS; na routeri sa neotvára nový port a miestny webový aktualizačný server nie je potrebný.
 
-## Bežná aktualizácia
+## Bežná aktualizácia z GitHubu
+
+1. Otvor **Aktualizácie** a vyber svoj tlačový most. Aplikácia načíta najnovšie stabilné vydanie firmvéru z pevného repozitára `pidiman/stitky` a porovná ho s verziou hlásenou ESP32.
+2. Tlačidlom **Skontrolovať GitHub** môžeš vyžiadať novú kontrolu. Ak je zariadenie aktuálne, zobrazí sa **Firmvér je aktuálny** a rovnaká ani staršia verzia sa týmto postupom neinštaluje.
+3. Pri dostupnej novšej verzii dokonči alebo zruš čakajúce tlačové úlohy a stlač **Nainštalovať verziu …**. Most musí byť online. Súbor `.bin` netreba hľadať ani nahrávať ručne.
+4. Server stiahne správny súbor z GitHubu, overí manifest, veľkosť, SHA-256, produkt, dosku aj OTA rozloženie a až potom zadá existujúcu Wi-Fi aktualizáciu. Pri chybe vydania alebo sťahovania sa inštalácia nespustí.
+5. Nechaj ESP32 zapnuté a počkaj na **Aktualizované**, ktoré potvrdzuje nový bežiaci obraz po reštarte. Celý most obsluhujúci P15 aj Brother sa aktualizuje spoločne.
+
+Kontrola sama nikdy neinštaluje firmvér. Server výsledok zdieľane uchováva 5 minút, explicitná kontrola najskôr po 60 sekundách vyžiada GitHub znovu. Tým sa obmedzí čerpanie verejného API limitu. Pri chybe GitHubu môže zostať zobrazené staršie posledné úspešné zistenie, ale inštalácia je zablokovaná do novej úspešnej kontroly. Podrobnosti vydania otvoríš priamo z panelu.
+
+## Ručná inštalácia zo súboru
+
+Pokročilá možnosť zostáva dostupná po rozbalení **Ručná inštalácia zo súboru · pokročilé**.
 
 1. Dokonči alebo zruš všetky čakajúce tlačové úlohy. ESP32 musí byť online.
-2. Otvor **Aktualizácie**, vyber aplikačný súbor `.bin` a zadaj jeho verziu. Pri súbore s verziou v názve sa označenie predvyplní.
+2. V sekcii **Aktualizácie** rozbaľ ručnú inštaláciu, vyber aplikačný súbor `.bin` a zadaj jeho verziu. Pri súbore s verziou v názve sa označenie predvyplní.
 3. Stlač **Pripraviť firmvér**. Server overí produkt, dosku, rozloženie pamäte, veľkosť, segmenty a kontrolné súčty. Tento krok ešte nič neinštaluje.
 4. Vyber hlavné ESP32 a pripravenú verziu. Stlač **Nainštalovať cez Wi-Fi**. Ak P15 aj Brother zdieľajú jedno ESP32, aktualizujú sa spoločne; na výber je hlavný most s podporou OTA.
 5. Nechaj ESP32 zapnuté. Počas sťahovania a zápisu bliká stavová RGB LED bielo, **200 ms svieti / 200 ms nesvieti**. Pri reštarte a opätovnom pripájaní nasleduje bežná žltá indikácia.
@@ -51,3 +63,9 @@ API a vnútorné stavy sú popísané v [API dokumentácii](../api/README.md). Z
 ## Overené na zariadení
 
 Dňa 17. 11. 2026 bola po prvotnej USB migrácii úspešne vykonaná Wi-Fi reinštalácia 2.0.0 cez živý server. ESP32 prešlo zo slotu 0 do slotu 1, potvrdilo hash nového bežiaceho obrazu a znovu pripojilo oba mosty. Brother zostal pripravený a nastavenia aj tlačové dáta aplikácie sa zachovali. [Rozsah skúšok](ACCEPTANCE.md#wi-fi-aktualizácia-esp32--server-040-firmvér-200).
+
+## Publikovanie firmvéru na GitHube
+
+Workflow [ESP32 firmware release](../.github/workflows/firmware-release.yml) sa spúšťa pri zmenách firmvéru na hlavnej vetve a možno ho spustiť aj ručne. Zostaví aplikáciu pre `esp32dev`, nástroj [firmware_release.py](../tools/firmware_release.py) pripraví binárny súbor a manifest a workflow ich zverejní ako stabilné vydanie `firmware-vMAJOR.MINOR.PATCH`. Už zverejnená verzia sa neprepisuje; pri zmene firmvéru zvýš `FPS_VERSION`.
+
+Vydanie musí obsahovať `esp32-firmware-VERSION.bin` a `esp32-firmware-VERSION.json`. Manifest obsahuje `schema: 1`, `product: fajny-print-studio`, `version`, `board: esp32dev`, `layout: dual1856-v1`, `file`, `size`, `sha256` a zdrojový commit. Aplikácia ignoruje koncepty, predbežné vydania a vydania servera; stabilné verzie firmvéru porovnáva číselne. Publikovanie používa dočasný GitHub Actions token iba pre repozitár. Server na kontrolu verejného vydania nepotrebuje GitHub token; kľúče tlačového mosta ani používateľské prihlásenie sa na GitHub neposielajú.

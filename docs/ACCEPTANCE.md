@@ -1,6 +1,6 @@
 # Overenie verejnej kópie
 
-- API a USB provisioning: 171 testov prešlo (164 API + 7 provisioning).
+- API a USB provisioning: 188 testov prešlo (181 API + 7 provisioning).
 - Web: TypeScript a produkčné zostavenie prešli.
 - C++ testy Wi-Fi portálu a dekódovania telemetrie prešli.
 
@@ -37,3 +37,11 @@ Prešlo 164 API testov vrátane oprávnení/CSRF, limitu a integrity obrazu, izo
 ## Samostatná sekcia aktualizácií
 
 Aktualizácia firmvéru má vlastnú položku **Aktualizácie** v navigácii správcu, oddelenú od zariadení. Príprava súboru a inštalácia majú samostatné odsadené karty; história má vlastnú časť. Produkčné zostavenie webu prešlo. V izolovanom prehliadači sa overilo oddelenie od zoznamu zariadení, vnútorné okraje na počítači aj mobile a rozloženie pri šírke 390 px bez vodorovného pretekania.
+
+## Kontrola a inštalácia firmvéru z GitHubu / server 0.4.1
+
+Prvý workflow ESP32 firmware release úspešne zostavil a zverejnil stabilné vydanie firmware-v2.0.0 s aplikačným .bin súborom a JSON manifestom. Skutočný súbor stiahnutý z GitHubu prešiel overením veľkosti, SHA-256, segmentov ESP32 aj markeru produktu/verzie/OTA rozloženia.
+
+Prešlo 181 API testov a 7 provisioning testov. Kontroly pokrývajú číselné porovnanie stabilných verzií, ignorovanie konceptov/prerelease, nekompatibilné a neúplné vydania, chybné súčty, obmedzené presmerovania a veľkosť, zdieľanú cache a výpadok zdroja. Inštalácia vyžaduje vedomý krok správcu, novšiu verziu a prázdny front; stav sa znovu kontroluje aj po sťahovaní.
+
+V izolovanom prehliadači sa overilo načítanie skutočného vydania 2.0.0 z GitHubu a správny stav Firmvér je aktuálny. So skúšobným starším zariadením tlačidlo Nainštalovať verziu 2.0.0 skutočne stiahlo a overilo obraz z GitHubu a vytvorilo čakajúcu OTA úlohu, ktorá bola potom zrušená pred prevzatím. Skutočné ESP32 sa pri tejto skúške neaktualizovalo a neposlala sa tlač. Mobilná šírka 390 px bola bez vodorovného pretekania; zostavenie webu prešlo.
