@@ -60,4 +60,9 @@ Hlavička zostáva, druhý riadok je prázdny a činnosť s detailom sú na spod
 
 ## ESPHome Brother gateway 0.1.0
 
-Zostavenie pre ESP32-C3 DevKitM-1 s Arduino frameworkom, ESPHome 2026.10.2, LD2410 UART, Home Assistant API, OTA, web_server a SNTP prešlo. Overené odmietnutie nevhodných API adries a neplatných tokenov/hostov; IPP kodek je zhodný s natívne testovanou plnou gateway. Žiadna zmena partícií ani samostatného firmvéru. Prvá verzia je experimentálna: fyzickú tlač a súbeh s radarom treba potvrdiť na zariadení.
+Zostavenie pre ESP32-C3 DevKitM-1 s Arduino frameworkom, ESPHome 2026.10.2, LD2410 UART, Home Assistant API, OTA, web_server a SNTP prešlo. Overené odmietnutie nevhodných API adries a neplatných tokenov/hostov; IPP kodek je zhodný s natívne testovanou plnou gateway. Žiadna zmena partícií ani samostatného firmvéru. Prvá verzia je experimentálna; dlhodobú stabilitu a všetky výpadkové scenáre treba ďalej sledovať.
+
+
+Dňa **17. 11. 2026** sa komponent nainštaloval cez existujúce ESPHome OTA do fyzického ESP32-C3 so zachovaným YAML radaru a šifrovaným Home Assistant API. Pôvodná konfigurácia sa pred zmenou zálohovala. LD2410 po štarte odpovedal a poskytol svoju verziu firmvéru; SNTP sa zosynchronizovalo. Nová gateway sa cez vlastný token prihlásila do aplikácie, správne rozpoznala QL-810W a súvislú 29 mm rolku.
+
+**Fyzická tlač je overená:** aplikácia → ESPHome ESP32-C3 → Brother QL-810W. Odoslal sa jediný schválený 40 × 29 mm skúšobný štítok s textom „ESPHome / Brother OK“. Gateway overila raster, Brother potvrdil dokončenie IPP úlohy a používateľ potvrdil jeden správny výtlačok. Gateway potom znovu hlásila pripravenosť. Táto skúška nepotvrdzuje každý formát, maximálnu dĺžku štítku, dlhodobú stabilitu ani obnovu po skutočnom výpadku napájania.

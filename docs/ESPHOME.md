@@ -2,7 +2,9 @@
 
 [Projekt](../README.md) · [Brother](BROTHER.md)
 
-Experimentálny komponent **esphome-br-0.1.0** pridáva do existujúceho ESPHome zariadenia gateway pre **Brother QL-810W cez Wi-Fi/IPP**. Pôvodná samostatná gateway zostáva nezmenená. ESPHome verzia nemá P15/Bluetooth, OLED ani aktualizácie cez aplikáciu štítkov. Aktualizuje sa bežným spôsobom cez ESPHome.
+Komponent **esphome-br-0.1.0** pridáva do existujúceho ESPHome zariadenia gateway pre **Brother QL-810W cez Wi-Fi/IPP**. Pôvodná samostatná gateway zostáva nezmenená. ESPHome verzia nemá P15/Bluetooth, OLED ani aktualizácie cez aplikáciu štítkov. Aktualizuje sa bežným spôsobom cez ESPHome.
+
+**Overené na zariadení 17. 11. 2026:** ESP32-C3 s LD2410, inštalácia cez ESPHome OTA a jeden správny fyzický výtlačok na 29 mm páske potvrdený používateľom. Prvá verzia zostáva experimentálna pre ostatné formáty a výpadkové scenáre.
 
 ## Rozsah prvej verzie
 
