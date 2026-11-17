@@ -13,7 +13,7 @@
 
 namespace esphome::fajny_brother {
 // Independent release: never install the standalone esp32dev image on ESPHome.
-static constexpr const char *VERSION="esphome-gw-0.2.0";
+static constexpr const char *VERSION="esphome-gw-0.2.1";
 class FajnyBrother : public Component, public ota::OTAGlobalStateListener {
  public:
   void set_api_url(const std::string &v){api_url_=v;}

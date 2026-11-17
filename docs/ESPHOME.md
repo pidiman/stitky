@@ -61,3 +61,7 @@ c++ -std=c++17 esphome/tools/test_p15_protocol.cpp -o /tmp/p15-protocol-test
 ```
 
 Stav reálneho overenia je v [akceptačných kontrolách](ACCEPTANCE.md). Novú podporu treba odlíšiť od staršieho fyzicky overeného Brother-only zostavenia.
+
+### Oprava 0.2.1
+
+Po prenose zostáva BLE spojenie ešte 1,5 sekundy otvorené. Po odpojení klienta nasleduje najmenej 750 ms na spracovanie udalostí; Bluetooth sa nevypína násilne počas odpájania. Neskorá chybová odpoveď zruší úspešný výsledok. Diagnostika uvádza dôvod reštartu, výsledok BLE prenosu a počty prijatých bajtov pri prerušení HTTP bez tokenov či obsahu štítku. Pri prvom pokuse s 0.2.0 vyšiel štítok s oneskorením, čo používateľ potvrdil. Gateway však reštartovala pri ukončovaní Bluetooth a aplikácia bezpečne ponechala výsledok ako neistý bez opakovania. Stabilný návrat po tlači sa musí ešte overiť.

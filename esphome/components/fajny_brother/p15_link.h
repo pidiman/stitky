@@ -23,7 +23,7 @@ class P15Link : public ble_client::BLEClientNode {
   const char *printer_status()const{return printer_status_;}
   void gattc_event_handler(esp_gattc_cb_event_t event,esp_gatt_if_t gattc_if,esp_ble_gattc_cb_param_t *param) override;
  protected:
-  enum Stage {Idle,Enable,Connect,Print,QueryBattery,WaitBattery,QueryStatus,WaitStatus,Disconnect,Disable};
+  enum Stage {Idle,Enable,Connect,Print,QueryBattery,WaitBattery,QueryStatus,WaitStatus,Settle,Disconnect,Disable};
   Stage stage_=Idle;esp32_ble::ESP32BLE *ble_=nullptr;esp32_ble_tracker::ESP32BLETracker *tracker_=nullptr;QueueHandle_t messages_=nullptr;
   std::atomic<bool> done_{true},cancel_{false};std::atomic<int> command_{0};
   Result result_=Unavailable;bool printing_=false,link_error_=false,disconnected_=false;

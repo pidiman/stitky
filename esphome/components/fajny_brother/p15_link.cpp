@@ -5,6 +5,7 @@
 #include "esp_bt.h"
 #include "esp_bt_main.h"
 #include <cstdio>
+#include "esphome/core/log.h"
 
 namespace esphome::fajny_brother {
 void P15Link::configure(ble_client::BLEClient *client,esp32_ble::ESP32BLE *ble,esp32_ble_tracker::ESP32BLETracker *tracker,QueueHandle_t messages){
@@ -17,9 +18,12 @@ bool P15Link::request(bool print,const uint8_t *raster){
   cancel_=false;done_.store(false,std::memory_order_release);command_.store(print?2:1,std::memory_order_release);return true;
 }
 void P15Link::finish_(Result result){
-  if(stage_==Disconnect||stage_==Disable||stage_==Idle)return;
-  result_=result;parent()->set_auto_connect(false);tracker_->stop_scan();parent()->set_enabled(false);
-  stage_=Disconnect;stage_at_=millis();
+  if(stage_==Settle||stage_==Disconnect||stage_==Disable||stage_==Idle)return;
+  ESP_LOGI("fajny_p15","Transfer result=%u phase=%u sent=%u",unsigned(result),unsigned(transfer_.phase()),unsigned(transfer_.sent()));
+  result_=result;parent()->set_auto_connect(false);tracker_->stop_scan();
+  // Keep the link alive while the final no-response write leaves the controller.
+  // A printer ACK can precede the physical feed/print operation.
+  stage_=Settle;stage_at_=millis();
 }
 bool P15Link::query_(const uint8_t *data,size_t size){
   if(!transfer_.take_credit())return false;
@@ -36,7 +40,7 @@ void P15Link::tick(bool cancel){
   if(stage_==Idle)return;
   // A valid completion may be immediately followed by CLOSE in the same BLE event batch.
   if(stage_==Print&&transfer_.phase()==FajnyP15::Transfer::Phase::Done&&!cancel&&!cancel_&&!link_error_)finish_(Printed);
-  if(stage_!=Disconnect&&stage_!=Disable&&(cancel||cancel_||link_error_||disconnected_||uint32_t(now-began_)>70000)){
+  if(stage_!=Settle&&stage_!=Disconnect&&stage_!=Disable&&(cancel||cancel_||link_error_||disconnected_||uint32_t(now-began_)>70000)){
     finish_(printing_&&transfer_.sent()?Uncertain:Unavailable);
   }
   switch(stage_){
@@ -70,8 +74,16 @@ void P15Link::tick(bool cancel){
     case WaitStatus:
       if((reply_size_&&uint32_t(now-query_data_at_)>=150)||uint32_t(now-stage_at_)>2000){printer_status_=printerStatus(reply_,reply_size_);finish_(Probed);}
       break;
+    case Settle:
+      if(printing_&&transfer_.phase()==FajnyP15::Transfer::Phase::Failed)result_=Uncertain;
+      if(uint32_t(now-stage_at_)>=1500){parent()->set_enabled(false);stage_=Disconnect;stage_at_=now;}
+      break;
     case Disconnect:
-      if(parent()->state()==esp32_ble_tracker::ClientState::IDLE||uint32_t(now-stage_at_)>1500){ble_->disable();stage_=Disable;stage_at_=now;}
+      // Let CLOSE/DISCONNECT and the scan-stop callbacks drain before dismantling.
+      // Never force teardown while the GATT client is still disconnecting.
+      if(parent()->state()==esp32_ble_tracker::ClientState::IDLE&&uint32_t(now-stage_at_)>=750){
+        ESP_LOGI("fajny_p15","Link closed; disabling BLE");ble_->disable();stage_=Disable;stage_at_=now;
+      }
       break;
     case Disable:
       // is_active() becomes false before teardown; wait for actual heap-owning stacks to stop.

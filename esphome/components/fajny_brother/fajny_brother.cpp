@@ -7,6 +7,7 @@
 #include "esp_heap_caps.h"
 #include "esp_random.h"
 #include "esp_timer.h"
+#include "esp_system.h"
 #include "mbedtls/sha256.h"
 #include <algorithm>
 #include <cstring>
@@ -37,6 +38,7 @@ struct Http {
   ~Http(){if(h){esp_http_client_close(h);esp_http_client_cleanup(h);}}
 };
 void FajnyBrother::setup(){
+  ESP_LOGI(TAG,"Gateway %s reset_reason=%u",VERSION,unsigned(esp_reset_reason()));
   ota::get_global_ota_callback()->add_global_state_listener(this);
   messages_=xQueueCreate(1,96);
 #ifdef USE_FPS_P15
@@ -139,13 +141,13 @@ int FajnyBrother::request_(const std::string &url,const char *type,const std::st
   if(api)esp_http_client_set_header(h,"Authorization",("Bearer "+(token.empty()?token_:token)).c_str());
   esp_http_client_set_method(h,HTTP_METHOD_POST);esp_http_client_set_header(h,"Content-Type",type);
   if(esp_http_client_open(h,prefix.size()+size)!=ESP_OK||!write_all(h,reinterpret_cast<const uint8_t*>(prefix.data()),prefix.size())||
-     (size&&!write_all(h,payload,size)))return -1;
+     (size&&!write_all(h,payload,size))){ESP_LOGW(TAG,"HTTP request could not open/write; free=%u largest=%u",unsigned(esp_get_free_heap_size()),unsigned(heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)));return -1;}
   int64_t length=esp_http_client_fetch_headers(h);int code=esp_http_client_get_status_code(h);last_refresh_=api&&client.refresh;
   if(code==204)return code;
   // No chunked/unbounded bodies or redirects; neither API tokens nor labels follow redirects.
   if(length<0||length>16384||esp_http_client_is_chunked_response(h))return -2;
   response.resize(length);size_t done=0;
-  while(done<response.size()){int n=esp_http_client_read(h,&response[done],response.size()-done);if(n<=0)return -2;done+=n;vTaskDelay(1);}
+  while(done<response.size()){int n=esp_http_client_read(h,&response[done],response.size()-done);if(n<=0){ESP_LOGW(TAG,"HTTP body interrupted: status=%d received=%u expected=%u",code,unsigned(done),unsigned(response.size()));return -2;}done+=n;vTaskDelay(1);}
   if(!esp_http_client_is_complete_data_received(h))return -2;
   return code;
 }
