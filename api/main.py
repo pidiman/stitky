@@ -23,9 +23,11 @@ from PIL import Image, ImageDraw, ImageFont
 from pydantic import BaseModel, Field, field_validator
 
 try:
+    from .brother import render_brother, profile_catalog, model_for_profile, job_geometry, MEDIA
     from .accounts import install as install_accounts
     from .rendering import render_canvas, STYLE_DEFAULTS, style_dict
 except ImportError:
+    from brother import render_brother, profile_catalog, model_for_profile, job_geometry, MEDIA
     from accounts import install as install_accounts
     from rendering import render_canvas, STYLE_DEFAULTS, style_dict
 
@@ -45,6 +47,9 @@ class Label(BaseModel):
     text: str = Field(min_length=1, max_length=200)
     kind: Literal["text", "qr"] = "text"
     qr_caption: str = Field(default="", max_length=120)
+    profile_id: Literal["p15_40x12", "brother_29", "brother_62", "brother_29x90", "brother_62x100"] = "p15_40x12"
+    length_mm: int = Field(default=50, ge=20, le=200, strict=True)
+    auto_cut: bool = Field(default=True, strict=True)
     font_size: int = Field(default=0, ge=0, le=64)
     font: Literal["sans", "sans-bold", "serif", "mono", "pixel"] = "sans"
     align: Literal["left", "center", "right"] = "center"
@@ -104,6 +109,7 @@ class TemplateInput(Label):
 
 class AgentInput(BaseModel):
     name: str = Field(min_length=1, max_length=80)
+    printer_model: Literal["p15", "brother_ql810w"] = "p15"
 
 
 class PauseInput(BaseModel):
@@ -124,8 +130,9 @@ class Telemetry(BaseModel):
     battery_percent: int | None = Field(default=None, ge=0, le=100, strict=True)
     printer_status: Literal["ready", "out_of_paper", "cover_open", "overheating", "low_battery", "cover_closed", "unknown"] | None = None
     last_error: str | None = Field(default=None, max_length=250)
+    media_ready: str | None = Field(default=None, max_length=96)
 
-    @field_validator("firmware_version", "model", "firmware", "serial", "last_error")
+    @field_validator("firmware_version", "model", "firmware", "serial", "last_error", "media_ready")
     @classmethod
     def clean_strings(cls, value):
         if value is not None and any(ord(c)<32 or ord(c)==127 for c in value):
@@ -161,6 +168,8 @@ def render_label(label: Label) -> tuple[bytes, bytes]:
     try:
         if label.kind != "qr" and label.qr_caption:
             raise ValueError("Popis QR je dostupný iba pri QR štítku.")
+        if label.profile_id != "p15_40x12":
+            return render_brother(label, font_path)
         if label.kind == "qr":
             if label.invert or label.border:
                 raise ValueError('QR kód nepodporuje inverziu ani rámik; zachovaj jeho biely okraj.')
@@ -245,8 +254,15 @@ def create_app(config: dict | None = None) -> FastAPI:
                     conn.execute(f"ALTER TABLE {table} ADD COLUMN font TEXT NOT NULL DEFAULT 'sans'")
                 if "style_json" not in columns:
                     conn.execute(f"ALTER TABLE {table} ADD COLUMN style_json TEXT NOT NULL DEFAULT '{{}}'")
+            job_columns = {row[1] for row in conn.execute("PRAGMA table_info(jobs)")}
+            for column, definition in {"payload_format": "TEXT NOT NULL DEFAULT 'p15-raster'",
+                                       "raster_width": "INTEGER NOT NULL DEFAULT 96",
+                                       "raster_height": "INTEGER NOT NULL DEFAULT 320"}.items():
+                if column not in job_columns:
+                    conn.execute(f"ALTER TABLE jobs ADD COLUMN {column} {definition}")
             agent_columns = {row[1] for row in conn.execute("PRAGMA table_info(agents)")}
             for column, definition in {
+                "printer_model": "TEXT NOT NULL DEFAULT 'p15'",
                 "telemetry_json": "TEXT NOT NULL DEFAULT '{}'",
                 "telemetry_received_at": "TEXT",
                 "printer_checked_at": "TEXT",
@@ -264,7 +280,7 @@ def create_app(config: dict | None = None) -> FastAPI:
         initialize_accounts()
         yield
 
-    app = FastAPI(title="Fajny Print Studio", version="0.2.0", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="Fajny Print Studio", version="0.3.0", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.db_path = db_path
 
     def expire(conn):
@@ -290,7 +306,7 @@ def create_app(config: dict | None = None) -> FastAPI:
             return row["id"]
 
     def stored_style(row):
-        return {"kind":"text", "qr_caption":"", **STYLE_DEFAULTS, **json.loads(row["style_json"] or "{}")}
+        return {"kind":"text", "qr_caption":"", "profile_id":"p15_40x12", "length_mm":50, "auto_cut":True, **STYLE_DEFAULTS, **json.loads(row["style_json"] or "{}")}
 
     def public_job(row):
         return {**{k: row[k] for k in ("id", "agent_id", "text", "font_size", "font", "status", "created_at", "updated_at", "message")}, **stored_style(row)}
@@ -304,12 +320,16 @@ def create_app(config: dict | None = None) -> FastAPI:
             conn.execute("SELECT 1")
         return {"ok": True}
 
+    @app.get("/api/profiles", dependencies=[Depends(admin)])
+    def profiles():
+        return profile_catalog()
+
     @app.get("/api/agents", dependencies=[Depends(admin)])
     def agents():
         now = time.time()
         with transaction() as conn:
             expire(conn)
-            return [{"id": r["id"], "name": r["name"], "last_seen": utc(r["last_seen"]) if r["last_seen"] else None,
+            return [{"id": r["id"], "name": r["name"], "printer_model": r["printer_model"], "last_seen": utc(r["last_seen"]) if r["last_seen"] else None,
                      "status": "online" if r["last_seen"] and now - r["last_seen"] < 45 else "offline",
                      "telemetry": json.loads(r["telemetry_json"] or "{}"),
                      "telemetry_received_at": r["telemetry_received_at"],
@@ -321,8 +341,8 @@ def create_app(config: dict | None = None) -> FastAPI:
         token = secrets.token_urlsafe(32)
         identifier = "esp32-" + uuid.uuid4().hex[:12]
         with transaction() as conn:
-            conn.execute("INSERT INTO agents(id,name,token_hash,last_seen,created_at) VALUES(?,?,?,?,?)", (identifier, body.name, digest(token), None, utc()))
-        return {"id": identifier, "name": body.name, "token": token}
+            conn.execute("INSERT INTO agents(id,name,token_hash,last_seen,created_at,printer_model) VALUES(?,?,?,?,?,?)", (identifier, body.name, digest(token), None, utc(), body.printer_model))
+        return {"id": identifier, "name": body.name, "token": token, "printer_model":body.printer_model}
 
     @app.post("/api/agents/{target_id}/pause", dependencies=[Depends(administrator)])
     def pause_agent(target_id: str, body: PauseInput):
@@ -348,6 +368,8 @@ def create_app(config: dict | None = None) -> FastAPI:
                 # An unanswered new probe invalidates old battery/status numbers.
                 for key in ("battery_percent", "printer_status"):
                     merged[key] = None
+                if "media_ready" in merged:
+                    merged["media_ready"] = None
             for key, value in incoming.items():
                 if key in {"model", "firmware", "serial"} and not value:
                     continue  # Keep the last observed identity; timestamps expose age.
@@ -369,6 +391,9 @@ def create_app(config: dict | None = None) -> FastAPI:
     def enqueue(body: JobInput):
         fingerprint_body = body.model_dump(exclude={"idempotency_key", *STYLE_DEFAULTS})
         fingerprint_body.update({key: value for key, value in style_dict(body).items() if value != STYLE_DEFAULTS[key]})
+        if body.profile_id == "p15_40x12":
+            for key in ("profile_id", "length_mm", "auto_cut"):
+                fingerprint_body.pop(key)
         if not body.qr_caption:
             fingerprint_body.pop("qr_caption")  # Preserve existing text and QR request fingerprints.
         if body.kind == "text":
@@ -383,13 +408,18 @@ def create_app(config: dict | None = None) -> FastAPI:
                 if previous["fingerprint"] != fingerprint:
                     raise HTTPException(409, "Idempotency key already used with different content")
                 return [public_job(conn.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()) for job_id in json.loads(previous["job_ids"])]
-            if conn.execute("SELECT 1 FROM agents WHERE id=?", (body.agent_id,)).fetchone() is None:
+            target = conn.execute("SELECT printer_model FROM agents WHERE id=?", (body.agent_id,)).fetchone()
+            if target is None:
                 raise HTTPException(404, "Agent not found")
+            if target["printer_model"] != model_for_profile(body.profile_id):
+                raise HTTPException(422, "Zvolený formát nepatrí k cieľovej tlačiarni.")
             ids = []
             now = utc()
             for _ in range(body.copies):
                 job_id = str(uuid.uuid4())
-                conn.execute("INSERT INTO jobs(id,agent_id,text,font_size,font,raster,style_json,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,'queued',?,?)", (job_id, body.agent_id, body.text, body.font_size, body.font, raster, json.dumps({**style_dict(body), "kind":body.kind, "qr_caption":body.qr_caption}), now, now))
+                conn.execute("INSERT INTO jobs(id,agent_id,text,font_size,font,raster,style_json,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,'queued',?,?)", (job_id, body.agent_id, body.text, body.font_size, body.font, raster, json.dumps({**style_dict(body), "kind":body.kind, "qr_caption":body.qr_caption, "profile_id":body.profile_id, "length_mm":body.length_mm, "auto_cut":body.auto_cut}), now, now))
+                fmt, width, height = job_geometry(body)
+                conn.execute("UPDATE jobs SET payload_format=?,raster_width=?,raster_height=? WHERE id=?", (fmt,width,height,job_id))
                 ids.append(job_id)
             conn.execute("INSERT INTO requests VALUES(?,?,?)", (body.idempotency_key, fingerprint, json.dumps(ids)))
             return [public_job(conn.execute("SELECT * FROM jobs WHERE id=?", (identifier,)).fetchone()) for identifier in ids]
@@ -422,7 +452,7 @@ def create_app(config: dict | None = None) -> FastAPI:
         render_label(body)
         template_id = str(uuid.uuid4())
         with transaction() as conn:
-            conn.execute("INSERT INTO templates(id,name,text,font_size,font,style_json) VALUES(?,?,?,?,?,?)", (template_id, body.name, body.text, body.font_size, body.font, json.dumps({**style_dict(body), "kind":body.kind, "qr_caption":body.qr_caption})))
+            conn.execute("INSERT INTO templates(id,name,text,font_size,font,style_json) VALUES(?,?,?,?,?,?)", (template_id, body.name, body.text, body.font_size, body.font, json.dumps({**style_dict(body), "kind":body.kind, "qr_caption":body.qr_caption, "profile_id":body.profile_id, "length_mm":body.length_mm, "auto_cut":body.auto_cut})))
         return {"id": template_id, **body.model_dump()}
 
     @app.delete("/api/templates/{template_id}", dependencies=[Depends(admin)])
@@ -450,8 +480,16 @@ def create_app(config: dict | None = None) -> FastAPI:
                 conn.execute("UPDATE jobs SET status='leased',lease_token=?,lease_expires=?,updated_at=?,message='' WHERE id=?", (secrets.token_urlsafe(24), time.time() + LEASE_SECONDS, utc(), row["id"]))
                 row = conn.execute("SELECT * FROM jobs WHERE id=?", (row["id"],)).fetchone()
             raw = bytes(row["raster"])
-            return {"id": row["id"], "lease_token": row["lease_token"], "width": 96, "height": 320,
-                    "raster_base64": base64.b64encode(raw).decode(), "sha256": digest(raw)}
+            result = {"id": row["id"], "lease_token": row["lease_token"], "width": row["raster_width"],
+                      "height": row["raster_height"], "sha256": digest(raw)}
+            if row["payload_format"] == "p15-raster":
+                result["raster_base64"] = base64.b64encode(raw).decode()
+            else:
+                media = MEDIA[stored_style(row)["profile_id"]]
+                result.update({"format":row["payload_format"], "size":len(raw),
+                               "payload_path":"/api/agent/jobs/"+row["id"]+"/payload",
+                               "media_width_mm":media.width_mm, "media_length_mm":media.media_length_mm})
+            return result
 
     def leased_job(conn, job_id, agent, token):
         expire(conn)
@@ -461,6 +499,16 @@ def create_app(config: dict | None = None) -> FastAPI:
         if not row["lease_token"] or not hmac.compare_digest(row["lease_token"], token):
             raise HTTPException(409, "Lease no longer valid")
         return row
+
+    @app.get("/api/agent/jobs/{job_id}/payload")
+    def payload(job_id: str, request: Request, agent: str = Depends(device)):
+        token = request.headers.get("x-lease-token", "")
+        with transaction() as conn:
+            row = leased_job(conn, job_id, agent, token)
+            if row["status"] != "leased" or row["payload_format"] != "brother-raster-v1":
+                raise HTTPException(409, "Payload is not available for this lease")
+            raw = bytes(row["raster"])
+        return Response(raw, media_type="application/octet-stream", headers={"Cache-Control":"no-store", "X-SHA256":digest(raw)})
 
     @app.post("/api/agent/jobs/{job_id}/start")
     def start(job_id: str, body: LeaseInput, agent: str = Depends(device)):

@@ -2,7 +2,7 @@
 
 [Projekt](../README.md) · [LED a blikanie](../docs/LED.md) · [Diagnostika](../docs/TROUBLESHOOTING.md)
 
-Firmvér **1.2.1** pre profil `esp32dev`, pôvodný ESP32-D0WDQ6, 4 MB flash. Prepája centrálny server cez Wi-Fi/HTTPS s tlačiarňou P15 cez BLE. Pri štarte nevytvára testové úlohy ani automaticky netlačí.
+Firmvér **1.3.0** pre profil `esp32dev`, pôvodný ESP32-D0WDQ6, 4 MB flash. Prepája centrálny server cez Wi-Fi/HTTPS s tlačiarňou P15 cez BLE. Pri štarte nevytvára testové úlohy ani automaticky netlačí.
 
 ## Hardvér a sieť
 
@@ -120,3 +120,11 @@ c++ -std=c++17 tools/test_printer_info.cpp -o /tmp/p15-info-test
 Kontroly overujú provisioning, HTML portálu a parsovanie odpovedí. Nenahrádzajú skúšku Wi-Fi, TLS, LED zapojenia a fyzickej P15 na konkrétnom hardvéri.
 
 Pri probléme pokračuj podľa [diagnostiky](../docs/TROUBLESHOOTING.md). Presné LED intervaly, priority a testovacia sekvencia sú v [LED návode](../docs/LED.md).
+
+## Brother QL-810W na tej istej doske
+
+Firmvér 1.3.0 zachováva P15 cez BLE a dopĺňa Brother cez sieťové IPP. Nové CONFIG polia sú brother_host (IPv4 tlačiarne) a brother_token (token samostatného zariadenia). Použi nástroj configure_brother.py; pôvodné P15/Wi-Fi/API nastavenia ostávajú uložené.
+
+Brother payload sa po HTTPS overí a uloží do LittleFS, aby celý raster nezaberal RAM. Pri prvom použití sa pripraví nepoužitá dátová partícia; predtým používaný poškodený spool sa sám nevymaže. Žurnál rozpracovanej úlohy a číslo IPP úlohy sú v NVS. BROTHER_CHECK číta identitu a médium bez tlače. Po reštarte sa tlačové dáta automaticky neodosielajú znovu.
+
+Kompletné nastavenie, médiá a potvrdenia sú v [Brother návode](../docs/BROTHER.md). Starý firmvér 1.2.1 nemá aktualizáciu cez Wi-Fi; prvé rozšírenie vyžaduje USB. Kontrolu IPP parsera spustíš cez `c++ -std=c++17 tools/test_brother_ipp.cpp -o /tmp/brother-ipp-test` a potom `/tmp/brother-ipp-test`.

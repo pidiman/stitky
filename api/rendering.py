@@ -56,7 +56,7 @@ def _has_glyph(font, char):
     return actual.size != missing.size or bytes(actual) != bytes(missing)
 
 
-def render_canvas(label, font_path, width=320, height=96):
+def render_canvas(label, font_path, width=320, height=96, max_font_size=64):
     text = normalize_symbols(label.text)
     label = label.model_copy(update={"text":text})
     if any(ord(c)>0xffff for c in text):
@@ -67,9 +67,9 @@ def render_canvas(label, font_path, width=320, height=96):
         image = render_pixel(text,label.font_size)
     elif label.font != 'pixel' and basic and not any(c in SYMBOLS for c in text):
         # Preserve prior layout and kerning when formatting has not been changed.
-        image = _legacy_truetype(label,font_path,width,height)
+        image = _legacy_truetype(label,font_path,width,height,max_font_size)
     else:
-        image = _styled(label,font_path,width,height)
+        image = _styled(label,font_path,width,height,max_font_size)
     if label.border:
         ImageDraw.Draw(image).rounded_rectangle((3,3,width-4,height-4),radius=5,outline=0,width=1)
     if label.invert:
@@ -77,12 +77,12 @@ def render_canvas(label, font_path, width=320, height=96):
     return image
 
 
-def _legacy_truetype(label,font_path,width=320,height=96):
+def _legacy_truetype(label,font_path,width=320,height=96,max_font_size=64):
     image=Image.new('1',(width,height),1);draw=ImageDraw.Draw(image)
-    for size in ([label.font_size] if label.font_size else range(64,5,-1)):
+    for size in ([label.font_size] if label.font_size else range(max_font_size,5,-1)):
         font=ImageFont.truetype(font_path(label.font,False,False),size)
         if not all(_has_glyph(font,c) for c in label.text if c!='\n'):
-            return _styled(label,font_path,width,height)
+            return _styled(label,font_path,width,height,max_font_size)
         bbox=draw.multiline_textbbox((0,0),label.text,font=font,spacing=4,align='center')
         if bbox[2]-bbox[0]<=width-24 and bbox[3]-bbox[1]<=height-24:
             x=(width-(bbox[2]-bbox[0]))//2-bbox[0];y=(height-(bbox[3]-bbox[1]))//2-bbox[1]
@@ -142,11 +142,11 @@ def _true_line(line,size,label,font_path):
     return out
 
 
-def _styled(label,font_path,width=320,height=96):
+def _styled(label,font_path,width=320,height=96,max_font_size=64):
     if label.font=='pixel':
         if label.font_size and label.font_size%7:raise ValueError('Pixelové písmo používa násobky 7 bodov.')
         sizes=[label.font_size//7] if label.font_size else range(9,0,-1)
-    else:sizes=[label.font_size] if label.font_size else range(64,5,-1)
+    else:sizes=[label.font_size] if label.font_size else range(max_font_size,5,-1)
     for size in sizes:
         lines=[_pixel_line(line,size,label) if label.font=='pixel' else _true_line(line,size,label,font_path) for line in label.text.split('\n')]
         gap=max(0,size+label.line_spacing-4) if label.font=='pixel' else label.line_spacing

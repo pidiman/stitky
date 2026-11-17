@@ -1,13 +1,14 @@
 # Fajny Print Studio
 
-Vlastná webová aplikácia na tvorbu a tlač štítkov **MarkLife P15**. Štítok pripravíš v prehliadači, server ho uloží do frontu a ESP32 ho cez Bluetooth odošle tlačiarni. Mobilná aplikácia výrobcu nie je potrebná.
+Vlastná webová aplikácia na tvorbu a tlač štítkov **MarkLife P15 a Brother QL-810W**. Štítok pripravíš v prehliadači, server ho uloží do frontu a ESP32 ho odošle P15 cez Bluetooth alebo Brotheru cez Wi-Fi. Mobilná aplikácia výrobcu nie je potrebná.
 
-Aktuálna implementácia používa **ESP32 cez Wi-Fi → BLE**. Pôvodný návrh s Raspberry Pi bol nahradený ESP32; hotový RPi agent nie je súčasťou repozitára.
+Aktuálna implementácia používa **ESP32 ako most pre BLE aj sieťovú tlač IPP**. Pôvodný návrh s Raspberry Pi bol nahradený ESP32; hotový RPi agent nie je súčasťou repozitára.
 
 ## Dokumentácia
 
 | Čo potrebuješ | Návod |
 |---|---|
+| Brother QL-810W, rolky, IPP a nastavenie ESP32 | [Brother návod](docs/BROTHER.md) |
 | Textový alebo QR štítok, šablóny a účty | [Používanie štúdia](docs/USER_GUIDE.md) |
 | Farby, intervaly blikania, zapojenie a test LED | [Stavová RGB LED](docs/LED.md) |
 | Server, Docker, HTTPS a zálohy | [Nasadenie a správa](docs/DEPLOY.md) |
@@ -25,6 +26,7 @@ flowchart LR
     S <--> D[(SQLite: účty, šablóny, front)]
     E[ESP32: Wi-Fi most] -->|Odchádzajúce HTTPS| S
     E <-->|BLE: tlač a údaje| P[MarkLife P15]
+    E <-->|Wi-Fi IPP| B[Brother QL-810W]
     E --> L[RGB stavová LED]
 ```
 
@@ -56,7 +58,7 @@ Pixelové písmo používa veľké ASCII znaky a nepodporuje diakritiku. Pre slo
 
 ## Stavová LED ESP32
 
-Firmvér 1.2.1 ovláda **externú adresovateľnú RGB LED WS2812/NeoPixel na GPIO18**. Nejde o univerzálne ovládanie vstavanej kontrolky ľubovoľnej dosky.
+Firmvér 1.3.0 ovláda **externú adresovateľnú RGB LED WS2812/NeoPixel na GPIO18**. Nejde o univerzálne ovládanie vstavanej kontrolky ľubovoľnej dosky.
 
 | Farba | Svieti / nesvieti | Význam |
 |---|---|---|
@@ -147,6 +149,6 @@ npm --prefix web ci
 npm --prefix web run build
 ```
 
-Mimo Dockera nainštaluj aj fonty DejaVu. Hostiteľské C++ kontroly a zostavenie firmvéru sú v [ESP32 návode](firmware/README.md). Posledná kontrola zdrojového stavu zahŕňala 146 testov API/provisioningu a zostavenie webu. Dokumentačné úpravy samy nespúšťajú tlač ani nahratie firmvéru.
+Mimo Dockera nainštaluj aj fonty DejaVu. Hostiteľské C++ kontroly a zostavenie firmvéru sú v [ESP32 návode](firmware/README.md). Posledná kontrola zdrojového stavu zahŕňala 162 testov API/provisioningu a konfigurácie Brothera a zostavenie webu. Dokumentačné úpravy samy nespúšťajú tlač ani nahratie firmvéru.
 
-MVP má pevný profil P15. Všeobecné obrázky, ľubovoľné čiarové kódy a rozmery, oddelené priestory používateľov a hotový RPi agent nie sú súčasťou tejto verzie.
+MVP podporuje P15 40 × 12 mm a štyri Brother profily: 29/62 mm súvislú pásku s dĺžkou 20–200 mm, 29 × 90 mm a 62 × 100 mm. Brother používa 300 dpi, monochromatickú tlač a voliteľný automatický orez. Rozšírenie vyžaduje firmvér ESP32 1.3.0; prvé nahratie cez USB. Detaily a stav hardvérového overenia sú v [Brother návode](docs/BROTHER.md). Všeobecné obrázky, iné médiá, dvojfarebná tlač, oddelené priestory používateľov a hotový RPi agent nie sú súčasťou tejto verzie.

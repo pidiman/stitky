@@ -99,3 +99,11 @@ Dotazy na informácie samy neposielajú tlač, posun papiera ani kalibráciu. Ne
 Záloha SQLite obsahuje aj účty, relácie, tokenové hashe, šablóny a front, preto je súkromná. Za behu použi SQLite backup API, nie samostatné kopírovanie databázy bez WAL. Obnova a aktualizácia sú v [nasadení](DEPLOY.md).
 
 Viac lokalít znamená ďalšie ESP32 s vlastným tokenom, Wi-Fi a cieľovou P15. Nie je potrebné meniť centrálny princíp frontu. Podpora inej tlačiarne alebo geometrie však vyžaduje zmenu renderingového aj firmvérového profilu; nestačí premenovať zariadenie.
+
+## Brother profil a spoločné ESP32
+
+[Brother QL-810W](BROTHER.md) má natívne 300 dpi profily oddelené od pôvodného P15 rastra. Každá agent položka má printer_model; štítky majú profile_id, length_mm a auto_cut. Server odmietne nekompatibilný cieľ. Staré záznamy aj idempotentné požiadavky dostanú pôvodné P15 predvoľby.
+
+Brother claim vracia malý manifest s formátom brother-raster-v1, veľkosťou, SHA-256 a cestou k binárnemu obsahu. GET payload vyžaduje token konkrétneho zariadenia aj platný lease token a je povolený iba pred začatím. ESP32 uloží súbor do LittleFS a až po overení a kontrole média volá start. P15 claim zostáva s raster_base64 a rozmermi 96 × 320.
+
+Jedno ESP32 drží dva nezávislé tokeny. Pracuje sekvenčne a nevyriešená úloha má prednosť pred novou tlačou. Brother sa obsluhuje cez IPP Print-Job/Get-Job-Attributes. Jeho pending záznam a číslo IPP úlohy sú v samostatnom NVS priestore; pri reštarte sa neopakuje fyzické odoslanie. IPP stav nevyžaduje dostupnosť tlačiarne z centrálneho servera.

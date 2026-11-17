@@ -41,11 +41,15 @@ def main():
     parser.add_argument('--wifi', action='store_true', help='Optional masked USB Wi-Fi setup instead of captive portal')
     args = parser.parse_args()
     data = configuration(args)
+    send_configuration(data, args.port)
+
+
+def send_configuration(data, port):
     command = b'CONFIG ' + json.dumps(data, ensure_ascii=True, separators=(',', ':')).encode() + b'\n'
     if len(command) > 8192:
         raise ValueError('Configuration exceeds firmware serial limit')
     import serial
-    with serial.Serial(args.port, 115200, timeout=1, dsrdtr=False, rtscts=False) as device:
+    with serial.Serial(port, 115200, timeout=1, dsrdtr=False, rtscts=False) as device:
         device.dtr = False
         device.rts = True
         time.sleep(.15)
@@ -61,7 +65,7 @@ def main():
         while time.monotonic() < deadline:
             line = device.readline().decode(errors='replace').strip()
             if line == 'CONFIG SAVED; RESTARTING':
-                print('Configuration saved in ESP32. Wi-Fi password can be entered in the protected captive portal.')
+                print('Configuration saved in ESP32. Settings omitted from this update were preserved.')
                 return
             if line.startswith('CONFIG REJECTED:'):
                 raise RuntimeError(line)

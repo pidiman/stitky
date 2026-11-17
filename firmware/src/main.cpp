@@ -19,13 +19,15 @@
 #include "printer_info.h"
 
 // Fixed hardware profile proven on this P15: 40x12mm, 96x320, gap stock.
-static constexpr const char* FIRMWARE_VERSION="1.2.1";
+static constexpr const char* FIRMWARE_VERSION="1.3.0";
 static constexpr size_t RASTER_SIZE = 3840;
 static uint8_t raster[RASTER_SIZE];
 static uint8_t bulk[8 + RASTER_SIZE + 6];
 Preferences configStore, jobStore;
 String ssid, password, apiUrl, agentToken, printerMac, caPem, serialLine;
 String pendingId, pendingLease, pendingOutcome, pendingMessage;
+String brotherToken,brotherHost;
+bool brotherHasPending=false;
 bool configured=false, serialOverflow=false, portalActive=false, configNvsReady=false, jobNvsReady=false;
 String configError;
 WebServer portal(80);DNSServer dns;
@@ -135,6 +137,13 @@ bool readConfiguration(const String& json, bool save) {
   String url=d["api_url"]|apiUrl.c_str(), token=d["agent_token"]|agentToken.c_str(), mac=d["printer_mac"]|printerMac.c_str();
   if(!mac.length())mac="02:00:00:00:00:01";
   String ca=d["server_ca_pem"]|caPem.c_str();
+  String nextBrotherToken=d["brother_token"]|brotherToken.c_str(), nextBrotherHost=d["brother_host"]|brotherHost.c_str();
+  if(nextBrotherToken.length()||nextBrotherHost.length()){
+    IPAddress hostAddress;
+    if(nextBrotherToken.length()<24||nextBrotherToken.length()>200||!hostAddress.fromString(nextBrotherHost)){
+      configError="BROTHER_HOST_OR_TOKEN";return false;
+    }
+  }
   while(url.endsWith("/"))url.remove(url.length()-1);
   mac.toLowerCase();
   bool serverValid=url.startsWith("https://")&&url.length()<=240&&url.indexOf('@')<0&&
@@ -152,6 +161,7 @@ bool readConfiguration(const String& json, bool save) {
     return false;
   }
   d["ssid"]=nextSsid;d["password"]=nextPassword;
+  d["brother_token"]=nextBrotherToken;d["brother_host"]=nextBrotherHost;
   d["api_url"]=url;d["agent_token"]=token;d["printer_mac"]=mac;d["server_ca_pem"]=ca;
   if(save){
     if(!configNvsReady){configError="NVS_CONFIG_NOT_OPEN";return false;}
@@ -164,6 +174,7 @@ bool readConfiguration(const String& json, bool save) {
       return false;
     }
   }
+  brotherToken=nextBrotherToken;brotherHost=nextBrotherHost;
   ssid=nextSsid;password=nextPassword;apiUrl=url;agentToken=token;printerMac=mac;caPem=ca;configured=serverValid;
   return true;
 }
@@ -270,7 +281,7 @@ bool readyWiFi() {
   return true;
 }
 // Each request owns and frees TLS allocations before the BLE stack is started.
-int post(const String& path,const String& body,String* response=nullptr,bool* refreshRequested=nullptr) {
+int post(const String& path,const String& body,String* response=nullptr,bool* refreshRequested=nullptr,const String& overrideToken="") {
   if(refreshRequested)*refreshRequested=false;
   if(!readyWiFi())return -1;
   ledSet(LedMode::Connecting);
@@ -279,7 +290,7 @@ int post(const String& path,const String& body,String* response=nullptr,bool* re
   http.setFollowRedirects(HTTPC_DISABLE_FOLLOW_REDIRECTS);http.useHTTP10(true);
   if(!http.begin(tls,apiUrl+path)){ledError();return -2;}
   const char* responseHeaders[]={"X-Printer-Refresh"};http.collectHeaders(responseHeaders,1);
-  http.addHeader("Authorization","Bearer "+agentToken);http.addHeader("Content-Type","application/json");
+  http.addHeader("Authorization","Bearer "+(overrideToken.length()?overrideToken:agentToken));http.addHeader("Content-Type","application/json");
   int status=http.POST(body);
   if(refreshRequested)*refreshRequested=http.header("X-Printer-Refresh")=="1";
   if(response && status==200){
@@ -480,21 +491,25 @@ void poll() {
   }
   reportPending();
 }
+#include "brother_bridge.h"
+
 void serialInput() {
   while(Serial.available()){
     char c=Serial.read();if(c=='\r')continue;
     if(c=='\n'){
       if(serialOverflow){Serial.println("CONFIG REJECTED: input too long");}
       else if(serialLine.startsWith("CONFIG ")){
-        if(pendingId.length())Serial.println("CONFIG REJECTED: pending job must be resolved first");
+        if(pendingId.length()||brotherHasPending)Serial.println("CONFIG REJECTED: pending job must be resolved first");
         else if(readConfiguration(serialLine.substring(7),true)){Serial.println("CONFIG SAVED; RESTARTING");pauseWithLed(150);ESP.restart();}
         else{Serial.println("CONFIG REJECTED: "+configError);ledError();}
       }else if(serialLine=="WIFI_SETUP"){startPortal();
       }else if(serialLine=="SETUP_INFO"){setupInfo();
       }else if(serialLine=="LED_TEST"){ledSelfTest=true;ledTestStarted=millis();ledTick();Serial.println("LED TEST START: blue/yellow/green/purple blink/purple/cyan/red/green flash; no printer commands");
+      }else if(serialLine=="BROTHER_CHECK"){brotherCheckOnly();
       }else if(serialLine=="PRINTER_INFO"){probeRequested=true;Serial.println("PRINTER INFO REQUESTED; waits for empty queue and 60s probe cooldown");
       }else if(serialLine=="STATUS"){
         Serial.printf("STATUS configured=%d wifi=%d wifi_status=%d pending=%d configNvs=%d jobNvs=%d lastDisconnect=%u saved_ssid=\"%s\" freeHeap=%u\n",configured,WiFi.status()==WL_CONNECTED,(int)WiFi.status(),pendingId.length()>0,configNvsReady,jobNvsReady,lastWiFiDisconnectReason,logSafeSsid(ssid).c_str(),ESP.getFreeHeap());
+        Serial.printf("BROTHER STATUS configured=%d pending=%d\n",brotherToken.length()>0&&brotherHost.length()>0,brotherHasPending);
         Serial.printf("INFO STATUS requested=%d reportPending=%d lastProbeConnected=%d batteryKnown=%d\n",probeRequested,probeReportPending,lastProbeConnected,probeBattery>=0);
       }
       serialLine="";serialOverflow=false;
@@ -503,12 +518,13 @@ void serialInput() {
 }
 void setup() {
   statusPixels.begin();statusPixels.setBrightness(LED_BRIGHTNESS);statusPixels.clear();statusPixels.show();ledTick();
-  Serial.setRxBufferSize(8192);Serial.begin(115200);pinMode(0,INPUT_PULLUP);pauseWithLed(1000);Serial.println("P15 HUB BRIDGE 1.2.1; NO BUILT-IN TEST PRINTS");
+  Serial.setRxBufferSize(8192);Serial.begin(115200);pinMode(0,INPUT_PULLUP);pauseWithLed(1000);Serial.println("FAJNY PRINT BRIDGE 1.3.0; NO BUILT-IN TEST PRINTS");
   configNvsReady=configStore.begin("p15-hub-config",false);jobNvsReady=jobStore.begin("p15-hub-jobs",false);
   Serial.printf("NVS OPEN config=%d jobs=%d\n",configNvsReady,jobNvsReady);
   if(!configNvsReady||!jobNvsReady){Serial.println("NVS OPEN FAILED; no print jobs will be processed");ledError();while(true){pauseWithLed(1000);}}
   if(!loadPending()){ledError();while(true){pauseWithLed(1000);}}
   readConfiguration(configStore.getString("settings",""),false);
+  setupBrother();
   WiFi.onEvent(wifiDiagnosticEvent);
   WiFi.persistent(false);
   if(!configured)Serial.println("API PROVISION REQUIRED: send CONFIG via local masked tool");
@@ -519,7 +535,8 @@ void setup() {
 void loop() {
   ledTick();serialInput();servicePortal();
   if(digitalRead(0)==LOW){if(!bootHeldSince)bootHeldSince=millis();if(millis()-bootHeldSince>=3000){startPortal();bootHeldSince=millis();}}else bootHeldSince=0;
-  if(!ledSelfTest&&configured&&readyWiFi()&&static_cast<int32_t>(millis()-nextPoll)>=0){nextPoll=millis()+10000;poll();}
-  if(!ledSelfTest&&configured)serviceTelemetry();
+  if(!ledSelfTest&&configured&&!brotherHasPending&&readyWiFi()&&static_cast<int32_t>(millis()-nextPoll)>=0){nextPoll=millis()+10000;poll();}
+  if(!ledSelfTest&&configured&&!pendingId.length()&&readyWiFi())pollBrother();
+  if(!ledSelfTest&&configured&&!brotherHasPending)serviceTelemetry();
   pauseWithLed(10);
 }

@@ -92,3 +92,11 @@ Správca v Zariadeniach vytvorí nový most a uloží jeho jednorazovo zobrazen�
 ## Kde hľadať pomoc
 
 Farby mosta vysvetľuje [LED návod](LED.md). Pri nejasnej tlači, offline stave, chybe náhľadu alebo prihlásenia použi [riešenie problémov](TROUBLESHOOTING.md).
+
+## Brother QL-810W
+
+Najprv v tlačových nastaveniach vyber Brother zariadenie. V editore sa objaví voľba rolky, pri súvislej páske dĺžka 20–200 mm a voľba automatického orezu. Rozmery náhľadu a DPI sa prispôsobia tlačiarni. Šablóny si pamätajú aj formát, dĺžku a orez; pri použití sa vyberie dostupné zariadenie príslušného typu.
+
+Založená rolka v karte tlačiarne je čítaná cez IPP. Musí zodpovedať zvolenému formátu. Pri nesúlade sa tlač neposiela. Pozastavené zariadenie má tlačidlo tlače vypnuté. Po prvom nahratí a nastavení ESP32 je potrebné trvalé spojenie overiť; podrobnosti sú v [Brother návode](BROTHER.md).
+
+Dokončenie Brother IPP úlohy a potvrdenie AA/OK od P15 sú odlišné zdroje stavu printed; oba vyžadujú fyzickú kontrolu, ak potrebuješ potvrdiť kvalitu štítku.
