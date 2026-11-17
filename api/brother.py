@@ -109,7 +109,7 @@ def encode_raster(content, media, auto_cut=True):
     head.paste(rotated, (720-media.printable_dots-media.right_pins, 0))
     raw = bytes(v ^ 255 for v in head.transpose(Image.Transpose.FLIP_LEFT_RIGHT).tobytes())
     lines = rotated.height
-    stream = bytearray(b"\x1bia\x01" + b"\0" * 400 + b"\x1b@\x1bia\x01")
+    stream = bytearray(b"\0" * 400 + b"\x1b@\x1bia\x01")
     stream += b"\x1bi!\x00"
     stream += b"\x1biz" + bytes([0xce, 0x0a if media.continuous else 0x0b,
                                 media.width_mm, media.media_length_mm])

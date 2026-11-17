@@ -11,16 +11,7 @@ uint32_t brotherIppJob=0;
 unsigned long nextBrotherPoll=0,nextBrotherProbe=0;
 const char* BROTHER_FILE="/brother.job";
 
-class BrotherBodyStream: public Stream {
-  const std::string& prefix;File& file;size_t position=0;
- public:
-  BrotherBodyStream(const std::string& p,File& f):prefix(p),file(f){}
-  int available() override {return int(prefix.size()-position)+file.available();}
-  int read() override {if(position<prefix.size())return uint8_t(prefix[position++]);return file.read();}
-  int peek() override {return position<prefix.size()?uint8_t(prefix[position]):file.peek();}
-  void flush() override {}
-  size_t write(uint8_t) override {return 0;}
-};
+#include "brother_body_stream.h"
 uint32_t brotherRequestId(){uint32_t id=esp_random()&0x7fffffffU;return id?id:1;}
 String brotherUri(){return "ipp://"+brotherHost+"/ipp/print";}
 bool brotherPersist(const String& outcome,const String& message,uint32_t ippJob=0) {
@@ -59,7 +50,7 @@ BrotherIpp::Response brotherRequest(const std::string& prefix,uint32_t requestId
   BrotherIpp::Response result;
   if(!readyWiFi()||!brotherHost.length())return result;
   WiFiClient client;HTTPClient http;http.setConnectTimeout(4000);http.setTimeout(12000);
-  http.setFollowRedirects(HTTPC_DISABLE_FOLLOW_REDIRECTS);http.useHTTP10(false);
+  http.setFollowRedirects(HTTPC_DISABLE_FOLLOW_REDIRECTS);http.useHTTP10(false);http.setReuse(false);
   if(!http.begin(client,"http://"+brotherHost+":631/ipp/print"))return result;
   http.addHeader("Content-Type","application/ipp");
   int status;
@@ -73,6 +64,7 @@ BrotherIpp::Response brotherRequest(const std::string& prefix,uint32_t requestId
         result=BrotherIpp::parse(std::string(response.c_str(),response.length()),requestId);
     }
   }
+  if(!result.ok())Serial.printf("BROTHER IPP HTTP=%d valid=%d status=0x%04x\n",status,result.valid,result.status);
   http.end();client.stop();return result;
 }
 BrotherIpp::Response brotherStatus() {

@@ -58,7 +58,7 @@ Pixelové písmo používa veľké ASCII znaky a nepodporuje diakritiku. Pre slo
 
 ## Stavová LED ESP32
 
-Firmvér 1.3.1 ovláda **externú adresovateľnú RGB LED WS2812/NeoPixel na GPIO18**. Nejde o univerzálne ovládanie vstavanej kontrolky ľubovoľnej dosky.
+Firmvér 1.3.2 ovláda **externú adresovateľnú RGB LED WS2812/NeoPixel na GPIO18**. Nejde o univerzálne ovládanie vstavanej kontrolky ľubovoľnej dosky.
 
 | Farba | Svieti / nesvieti | Význam |
 |---|---|---|
@@ -151,4 +151,4 @@ npm --prefix web run build
 
 Mimo Dockera nainštaluj aj fonty DejaVu. Hostiteľské C++ kontroly a zostavenie firmvéru sú v [ESP32 návode](firmware/README.md). Posledná kontrola zdrojového stavu zahŕňala 162 testov API/provisioningu a konfigurácie Brothera a zostavenie webu. Dokumentačné úpravy samy nespúšťajú tlač ani nahratie firmvéru.
 
-MVP podporuje P15 40 × 12 mm a štyri Brother profily: 29/62 mm súvislú pásku s dĺžkou 20–200 mm, 29 × 90 mm a 62 × 100 mm. Brother používa 300 dpi, monochromatickú tlač a voliteľný automatický orez. Rozšírenie vyžaduje firmvér ESP32 1.3.1; prvé nahratie cez USB. Detaily a stav hardvérového overenia sú v [Brother návode](docs/BROTHER.md). Všeobecné obrázky, iné médiá, dvojfarebná tlač, oddelené priestory používateľov a hotový RPi agent nie sú súčasťou tejto verzie.
+MVP podporuje P15 40 × 12 mm a štyri Brother profily: 29/62 mm súvislú pásku s dĺžkou 20–200 mm, 29 × 90 mm a 62 × 100 mm. Brother používa 300 dpi, monochromatickú tlač a voliteľný automatický orez. Rozšírenie vyžaduje firmvér ESP32 1.3.2; prvé nahratie cez USB. Detaily a stav hardvérového overenia sú v [Brother návode](docs/BROTHER.md). Všeobecné obrázky, iné médiá, dvojfarebná tlač, oddelené priestory používateľov a hotový RPi agent nie sú súčasťou tejto verzie.

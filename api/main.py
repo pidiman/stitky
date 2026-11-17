@@ -280,7 +280,7 @@ def create_app(config: dict | None = None) -> FastAPI:
         initialize_accounts()
         yield
 
-    app = FastAPI(title="Fajny Print Studio", version="0.3.0", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="Fajny Print Studio", version="0.3.1", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.db_path = db_path
 
     def expire(conn):

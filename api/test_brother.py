@@ -68,6 +68,21 @@ def test_native_geometry_preview_raster_pixel_equivalence_and_media(client,profi
     assert logical.crop((0,0,offset,lines)).getextrema()==(255,255) if offset else True
 
 
+def test_ipp_raster_starts_with_documented_invalidate_initialize_mode_sequence(client):
+    target, headers = brother(client)
+    assert client.post('/api/jobs', headers=A, json={
+        'agent_id': target, 'profile_id': 'brother_29', 'text': 'Wire test',
+        'idempotency_key': 'brother-ipp-initialization'
+    }).status_code == 201
+    claim = client.post('/api/agent/claim', headers=headers).json()
+    payload = client.get(claim['payload_path'], headers={
+        **headers, 'X-Lease-Token': claim['lease_token']
+    }).content
+    # Brother Raster Command Reference, print data overview (p. 5).
+    assert payload[:406] == bytes(400) + bytes.fromhex('1b401b696101')
+    decode_payload(payload)
+
+
 def test_payload_auth_lease_isolation_and_target_validation(client):
     target,headers=brother(client)
     request={"text":"test","profile_id":"brother_29","agent_id":target,"idempotency_key":"brother-isolation"}

@@ -14,7 +14,7 @@ Fajny Print Studio / API
 
 Samostatné Raspberry Pi nie je potrebné. ESP32 a Brother musia mať vzájomne dostupné sieťové spojenie. Server môže zostať mimo domácej LAN; tlačiareň sa nevystavuje do internetu. Každá tlačiareň má v štúdiu vlastné zariadenie a vlastný token, hoci obe obsluhuje jedna doska.
 
-Rozšírenie vyžaduje **firmvér ESP32 1.3.1**. Starší firmvér 1.2.1 podporuje len P15 a nemá vzdialenú aktualizáciu. Na prvé nahratie je potrebný dátový USB kábel; potom zariadenie opäť funguje samostatne cez Wi-Fi.
+Rozšírenie vyžaduje **firmvér ESP32 1.3.2**. Starší firmvér 1.2.1 podporuje len P15 a nemá vzdialenú aktualizáciu. Na prvé nahratie je potrebný dátový USB kábel; potom zariadenie opäť funguje samostatne cez Wi-Fi.
 
 ## Aktuálny rozsah
 
@@ -34,7 +34,7 @@ Zvolený formát musí zodpovedať založenej rolke. Most pred odoslaním tlače
 1. Pripoj Brothera k domácej Wi-Fi a v routeri mu rezervuj stabilnú IP adresu.
 2. Over, že ESP32 sa z jeho siete dostane na túto adresu a port 631. Hosťovská izolácia medzi zariadeniami môže spojenie blokovať.
 3. Správca vytvorí v Zariadeniach nové zariadenie typu **Brother QL-810W · Wi-Fi** a uloží jednorazovo zobrazený token.
-4. Nahraj firmvér 1.3.1 podľa [ESP32 návodu](../firmware/README.md). Počas nahrávania nesmie prebiehať tlač ani zostať nevyriešený výsledok.
+4. Nahraj firmvér 1.3.2 podľa [ESP32 návodu](../firmware/README.md). Počas nahrávania nesmie prebiehať tlač ani zostať nevyriešený výsledok.
 5. Cez USB nastav len nové Brother polia:
 
 ```sh
@@ -79,10 +79,14 @@ Pri prenose a čakaní sa používa tyrkysová LED. Po potvrdenom dokončení a 
 
 Softvérové kontroly pokrývajú natívne rozmery, raster/preview zhodu, orez, oddelenie tokenov, sťahovanie iba s platnou rezerváciou, staré úlohy P15 a IPP parser vrátane poškodených správ. Nezávislý QR dekodér číta QR s popisom na všetkých štyroch profiloch. Zostavenie firmvéru a webu prešlo.
 
-Firmvér 1.3.1 bol nahratý na ESP32 a overený po opakovanom štarte: zachoval nastavenia P15/Wi-Fi, cez IPP priamo potvrdil QL-810W v stave idle s 29 mm súvislou rolkou a odoslal stav ready aj správne médium na server. Fyzický výtlačok ešte treba vedome vyskúšať zo štúdia; čítanie stavu ho nenahrádza.
+Firmvér 1.3.2 bol nahratý na ESP32 a overený po opakovanom štarte: zachoval nastavenia P15/Wi-Fi, cez IPP priamo potvrdil QL-810W v stave idle s 29 mm súvislou rolkou a odoslal stav ready aj správne médium na server. Fyzický výtlačok ešte treba vedome vyskúšať zo štúdia; čítanie stavu ho nenahrádza.
 
 ## Zdroje protokolu
 
 - [Brother Raster Command Reference v1.01](https://download.brother.com/welcome/docp100278/cv_ql800_eng_raster_101.pdf)
 - [IPP/1.1 encoding and transport, RFC 8010](https://www.rfc-editor.org/rfc/rfc8010.html)
 - [IPP model and semantics, RFC 8011](https://www.rfc-editor.org/rfc/rfc8011.html)
+
+## Ak prvá tlač zostane zaseknutá
+
+Použi server 0.3.1 a firmvér ESP32 1.3.2 alebo novší. Táto oprava zachováva štandardné poradie úvodných raster príkazov, posiela spool v blokoch a ukončuje IPP spojenie po požiadavke. Staršia kombinácia mohla zostať v stave job-incoming / spool-area-full-report bez výtlačku. Neistú úlohu automaticky neopakuj. Po kontrole štítku zruš iba konkrétnu zaseknutú úlohu alebo reštartuj tlačiareň; po návrate do ready možno vedome vytvoriť novú úlohu. Podrobnosti overenia sú v [akceptačných kontrolách](ACCEPTANCE.md).
