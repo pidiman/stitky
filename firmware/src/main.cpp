@@ -304,7 +304,7 @@ int post(const String& path,const String& body,String* response=nullptr,bool* re
   if(refreshRequested)*refreshRequested=false;
   if(!readyWiFi())return -1;
   if(path.endsWith("/complete")){if(oledModel.state()!=FpsOled::State::Error&&oledModel.state()!=FpsOled::State::Result)oledShow(FpsOled::State::Result,"HLASIM VYSLEDOK API");}
-  else oledShow(FpsOled::State::Server,path.endsWith("/claim")?(overrideToken.length()?"KONTROLA FRONTU BR":"KONTROLA FRONTU P15"):path.endsWith("/firmware/check")?"KONTROLA AKTUALIZACIE":"ODOSIELAM UDAJE");
+  // Routine API polling stays silent on OLED; failures still show their reason.
   ledSet(LedMode::Connecting);
   WiFiClientSecure tls;tls.setCACert(caPem.c_str());tls.setHandshakeTimeout(12);
   HTTPClient http;http.setConnectTimeout(12000);http.setTimeout(15000);

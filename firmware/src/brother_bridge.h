@@ -74,7 +74,7 @@ BrotherIpp::Response brotherStatus() {
   return brotherRequest(BrotherIpp::statusRequest(requestId,brotherUri().c_str()),requestId);
 }
 bool brotherDownload(const String& path,size_t size,const String& expected) {
-  oledShow(FpsOled::State::BrotherDownload,"STAHUJEM A OVERUJEM");
+  oledShow(FpsOled::State::BrotherDownload,"BROTHER");
   if(!brotherStorageReady||size<400||size>250000||expected.length()!=64||
      path!="/api/agent/jobs/"+brotherJobId+"/payload")return false;
   WiFiClientSecure tls;tls.setCACert(caPem.c_str());tls.setHandshakeTimeout(12);
@@ -139,7 +139,7 @@ bool brotherReport() {
 void brotherTelemetry(bool force=false) {
   if(!force&&static_cast<int32_t>(millis()-nextBrotherProbe)<0)return;
   nextBrotherProbe=millis()+30000;
-  oledShow(FpsOled::State::BrotherCheck,"CITAM STAV TLACIARNE");
+  // Background status polling must not interrupt the idle screen or a result.
   auto response=brotherStatus();
   bool found=response.ok()&&response.text("printer-make-and-model").find("QL-810W")!=std::string::npos;
   DynamicJsonDocument d(1400);d["firmware_version"]=FIRMWARE_VERSION;d["wifi_rssi"]=WiFi.RSSI();

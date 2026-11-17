@@ -159,4 +159,4 @@ Od servera 0.4.0 a firmvéru 2.0.0 je dostupná aktualizácia ESP32 cez Wi-Fi pr
 
 Sekcia **Aktualizácie** kontroluje najnovšie stabilné vydanie firmvéru na GitHube a ponúka jeho inštaláciu jedným tlačidlom. `.bin` aj kontrolný manifest publikuje automatické zostavenie; súbor už netreba ručne vyhľadávať a nahrávať. [Postup a vydania firmvéru](docs/OTA.md).
 
-Firmvér **2.1.0** pridáva voliteľný OLED SSD1306 128 × 32 cez I²C (SDA GPIO21, SCK/SCL GPIO22, VCC 3V3). Zobrazuje aktuálnu činnosť, prenos, výsledky a sieťové údaje. [Zapojenie, predpokladaný modul a diagnostika](docs/OLED.md).
+Firmvér **2.1.0** pridáva voliteľný OLED SSD1306 128 × 32 cez I²C (SDA GPIO21, SCK/SCL GPIO22, VCC 3V3). Od **2.1.1** ponecháva druhý riadok prázdny a zobrazuje iba činnosť a podstatný detail bez striedania diagnostických údajov. [Zapojenie, predpokladaný modul a diagnostika](docs/OLED.md).

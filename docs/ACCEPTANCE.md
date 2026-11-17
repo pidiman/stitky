@@ -50,4 +50,9 @@ V izolovanom prehliadači sa overilo načítanie skutočného vydania 2.0.0 z Gi
 
 Pripravený profil SSD1306 128 × 32 I²C na GPIO21/GPIO22, adresy 0x3C/0x3D. Natívny C++ test overil zobrazované stavy, podržanie chyby/výsledku, neprekrytie novej činnosti starou chybou, percentá, pretečenie millis časovača, orezanie riadkov, 512-bajtový raster, adresovanie a pakety I²C, vynechanie opakovaného obrazu, stlmenie a vypnutie zápisov pri chybe či chýbajúcom displeji. Test IPP prenosu overil aj callback postupu bez zmeny binárnych dát; ostatné natívne kontroly IPP, údajov P15 a Wi-Fi portálu prešli.
 
-Zostavenie firmvéru sa zmestilo do oboch existujúcich OTA slotov bez zmeny partícií. Fyzický modul označený V1.6 zatiaľ nebol overený; predpoklad bežného SSD1306 128 × 32 vychádza z popisu 0,91″ a štyroch pinov. Úspešné zostavenie ani simulovaný obraz sa nevydávajú za potvrdené zobrazenie na zariadení.
+Zostavenie firmvéru sa zmestilo do oboch existujúcich OTA slotov bez zmeny partícií. Používateľ následne 17. 11. 2026 potvrdil zobrazenie údajov na fyzickom module V1.6. Wi-Fi aktualizácia na 2.1.0 sa dokončila s overením kontrolného súčtu bežiaceho obrazu a oba tlačové profily sa prihlásili s novou verziou. Táto skúška nepotvrdzuje každý jednotlivý chybový/tlačový stav a neposielala nový skúšobný výtlačok.
+
+
+## Zjednodušený OLED / firmvér 2.1.1
+
+Hlavička zostáva, druhý riadok je prázdny a činnosť s detailom sú na spodných dvoch riadkoch. Diagnostické údaje sa nestriedajú; pravidelné API a Brother kontroly neprepínajú displej. Natívna kontrola overuje aj nemennú pripravenú obrazovku, prázdny druhý riadok vo všetkých stavoch, poslednú použitú tlačiareň a zachovanie percent a priorít výsledkov/chýb. Fyzické overenie nového rozloženia sa vykonáva až po nainštalovaní tejto verzie.

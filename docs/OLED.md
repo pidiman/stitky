@@ -23,20 +23,22 @@ Predvolené ESP32 I²C piny potvrdzuje [Espressif](https://docs.espressif.com/pr
 
 Štyri riadky po najviac 21 znakov používajú malé pôvodné 5 × 7 písmo projektu, veľké ASCII písmená bez diakritiky. Dlhšie správy sa skrátia s tromi bodkami; nepretečú za okraj.
 
-1. **FAJNY PRINT a verzia firmvéru.**
-2. **Aktuálna činnosť:** štart, Wi-Fi/NTP, nastavovací portál, server, pripájanie a čítanie P15, sťahovanie/kontrola štítku Brother, tlač, výsledok, aktualizácia alebo chyba.
-3. **Detail činnosti:** konkrétna chyba, čakanie na dokončenie alebo percentá prenesených dát pri P15, Brother a OTA. Percentá znamenajú prenos dát, nie potvrdenie fyzického výtlačku.
-4. **Striedajúce sa údaje približne každých 5 sekúnd:** miestna IP adresa; posledný overený stav P15 a Brothera vrátane šírky rolky; Wi-Fi signál a posledný úspešný API kontakt. Pri portáli ukáže jeho IP a odkaz na USB príkaz SETUP_INFO.
+Od **2.1.1** je rozloženie zjednodušené:
 
-Pri pripravenom moste sa v treťom riadku zobrazuje aj čas behu v minútach a voľná pamäť v KiB. Znak `?` znamená zatiaľ neoverené údaje; `OFF` nedostupnosť pri poslednej kontrole. Posledný stav tlačiarne ani API sa nevydáva za nepretržité spojenie.
+1. **FAJNY PRINT a verzia firmvéru.**
+2. **Prázdny riadok**, ktorý oddeľuje hlavičku od obsahu.
+3. **Aktuálna činnosť:** štart, Wi-Fi/NTP, nastavovací portál, pripájanie P15, preberanie štítku, tlač, výsledok, aktualizácia alebo chyba.
+4. **Podstatný detail:** tlačiareň, konkrétna chyba, čakanie na dokončenie alebo percentá prenesených dát pri P15, Brother a OTA. Percentá znamenajú prenos dát, nie potvrdenie fyzického výtlačku. Bez užitočného detailu riadok zostáva prázdny. Pri pripravenom moste ukazuje poslednú použitú alebo ručne kontrolovanú tlačiareň, ak je známa; nejde o potvrdenie jej aktuálnej dostupnosti.
+
+Bežné kontroly API/frontu a pravidelné čítanie stavu Brothera obrazovku neprepínajú. IP adresa, sila Wi-Fi, pamäť, čas behu ani spoločný prehľad oboch tlačiarní sa už nestriedajú. Výnimkou je adresa nastavovacieho portálu, ktorá je potrebná na jeho otvorenie.
 
 Príklad počas prenosu na Brother:
 
 ```text
-FAJNY PRINT 2.1.0
+FAJNY PRINT 2.1.1
+
 TLACIM NA BROTHER
 PRENOS: 42%
-P15:OFF BR:OK 29MM
 ```
 
 Po prenose nasleduje **CAKAM NA DOKONCENIE** a až potom potvrdený alebo neistý výsledok. Potvrdenie sa podrží asi 3,5 sekundy a chyba aspoň 8 sekúnd, aby ju bežná kontrola frontu hneď neprekryla. Nová skutočná činnosť môže nahradiť staršiu správu. Nevyriešená chyba, pri ktorej firmvér zostane stáť, zostáva zobrazená.
@@ -58,7 +60,7 @@ Ak obraz zostane čierny, over 3V3, spoločnú zem a správne GPIO21/GPIO22. Ak 
 
 ## Inštalácia a overenie
 
-Po pripojení displeja nainštaluj 2.1.0 cez **Aktualizácie → Skontrolovať GitHub → Nainštalovať verziu 2.1.0**. Existujúci OTA profil 2.0.0 sa nemení a USB migráciu netreba opakovať.
+Po pripojení displeja nainštaluj 2.1.1 cez **Aktualizácie → Skontrolovať GitHub → Nainštalovať verziu 2.1.1**. Existujúci OTA profil 2.0.0 sa nemení a USB migráciu netreba opakovať.
 
 V [platformio.ini](../firmware/platformio.ini) sú piny `OLED_SDA=21`, `OLED_SCL=22`. Pri zmene zapojenia uprav tieto definície a skontroluj konflikt so stavovou LED. Ovládač používa iba dodávanú knižnicu Wire; nepridáva veľkú grafickú knižnicu ani jej fonty, aby zostal priestor v oboch OTA slotoch.
 

@@ -2,7 +2,7 @@
 
 [Projekt](../README.md) · [LED a blikanie](../docs/LED.md) · [Diagnostika](../docs/TROUBLESHOOTING.md)
 
-Firmvér **2.1.0** pre profil `esp32dev`, pôvodný ESP32-D0WDQ6, 4 MB flash. Prepája centrálny server cez Wi-Fi/HTTPS s P15 cez BLE aj Brother QL-810W cez sieťové IPP. Pri štarte nevytvára testové úlohy ani automaticky netlačí.
+Firmvér **2.1.1** pre profil `esp32dev`, pôvodný ESP32-D0WDQ6, 4 MB flash. Prepája centrálny server cez Wi-Fi/HTTPS s P15 cez BLE aj Brother QL-810W cez sieťové IPP. Pri štarte nevytvára testové úlohy ani automaticky netlačí.
 
 ## Hardvér a sieť
 
