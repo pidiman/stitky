@@ -12,6 +12,9 @@
 #include <cstring>
 #include <ctime>
 #include <memory>
+#ifdef USE_FPS_P15
+#include "mbedtls/base64.h"
+#endif
 
 namespace esphome::fajny_brother {
 static const char *const TAG="fajny_brother";
@@ -21,10 +24,14 @@ static bool write_all(esp_http_client_handle_t h,const uint8_t *p,size_t n){
   while(n){int k=esp_http_client_write(h,reinterpret_cast<const char*>(p),std::min(n,size_t(1024)));if(k<=0)return false;p+=k;n-=k;vTaskDelay(1);}return true;
 }
 struct Http {
-  esp_http_client_handle_t h=nullptr;
+  esp_http_client_handle_t h=nullptr;bool refresh=false;
   explicit Http(const std::string &url){
     esp_http_client_config_t c{};c.url=url.c_str();c.timeout_ms=12000;c.disable_auto_redirect=true;c.buffer_size=1024;c.buffer_size_tx=1024;
-    c.crt_bundle_attach=esp_crt_bundle_attach;h=esp_http_client_init(&c);
+    c.crt_bundle_attach=esp_crt_bundle_attach;c.user_data=this;
+    c.event_handler=[](esp_http_client_event_t *e)->esp_err_t {
+      if(e->event_id==HTTP_EVENT_ON_HEADER&&e->header_key&&e->header_value&&strcasecmp(e->header_key,"X-Printer-Refresh")==0&&strcmp(e->header_value,"1")==0)static_cast<Http*>(e->user_data)->refresh=true;
+      return ESP_OK;
+    };h=esp_http_client_init(&c);
     if(h)esp_http_client_set_header(h,"Connection","close");
   }
   ~Http(){if(h){esp_http_client_close(h);esp_http_client_cleanup(h);}}
@@ -32,10 +39,21 @@ struct Http {
 void FajnyBrother::setup(){
   ota::get_global_ota_callback()->add_global_state_listener(this);
   messages_=xQueueCreate(1,96);
+#ifdef USE_FPS_P15
+  p15_messages_=xQueueCreate(1,96);
+  if(!p15_messages_||!p15_client_||!p15_ble_||!p15_tracker_){mark_failed();return;}
+  p15_link_.configure(p15_client_,p15_ble_,p15_tracker_,p15_messages_);
+#endif
   if(!messages_||xTaskCreate(task_entry_,"fajny-brother",8192,this,1,&task_)!=pdPASS){mark_failed();return;}
 }
 void FajnyBrother::loop(){
   connected_=network::is_connected();char text[96];
+#ifdef USE_FPS_P15
+  p15_link_.tick(stopping_||ota_active_||!connected_);
+  if(p15_messages_&&xQueueReceive(p15_messages_,text,0)==pdTRUE&&p15_last_status_!=text){
+    p15_last_status_=text;ESP_LOGI(TAG,"%s",text);if(p15_sensor_)p15_sensor_->publish_state(text);
+  }
+#endif
   if(messages_&&xQueueReceive(messages_,text,0)==pdTRUE&&last_status_!=text){
     last_status_=text;ESP_LOGI(TAG,"%s",text);if(sensor_)sensor_->publish_state(text);
   }
@@ -66,27 +84,63 @@ bool FajnyBrother::clear_(){
 }
 void FajnyBrother::run_(){
   storage_ok_=load_();if(!storage_ok_)status_("CHYBA: PAMAT ULOHY");
+#ifdef USE_FPS_P15
+  p15_storage_ok_=load_p15_();if(!p15_storage_ok_)p15_status_("P15: CHYBA PAMATE ULOHY");
+#endif
   uint32_t telemetry_at=0;
   while(!stopping_){
     if(!connected_)status_("CAKAM NA WI-FI");
     else if(time(nullptr)<1700000000)status_("CAKAM NA CAS / SNTP");
-    else if(storage_ok_&&!ota_active_){
+    else if(storage_ok_&&!ota_active_
+#ifdef USE_FPS_P15
+      &&p15_storage_ok_&&p15_radio_ok_
+#endif
+    ){
       uint32_t now=esp_timer_get_time()/1000;
-      if(!telemetry_at||uint32_t(now-telemetry_at)>=30000){telemetry_();telemetry_at=now;}
+      if(!telemetry_at||uint32_t(now-telemetry_at)>=30000){
+#ifdef USE_FPS_P15
+        // Results are reconciled before background work; no overlapping TLS/BLE operations.
+        if(!p15_pending_)telemetry_();
+        telemetry_p15_();
+#else
+        telemetry_();
+#endif
+        telemetry_at=now;
+      }
+#ifdef USE_FPS_P15
+      if(!stopping_&&!ota_active_){
+        if(p15_pending_)report_p15_();
+        else {
+          cycle_();
+          if(!pending_&&storage_ok_&&!stopping_&&!ota_active_){
+            claim_p15_();
+            if(!p15_pending_&&p15_radio_ok_&&(!p15_probe_at_||p15_refresh_||uint32_t(now-p15_probe_at_)>=120000))probe_p15_();
+          }
+        }
+      }
+#else
       if(!stopping_)cycle_();
+#endif
     }
     for(int i=0;i<100&&!stopping_;++i)vTaskDelay(pdMS_TO_TICKS(100));
   }
   if(nvs_)nvs_close(nvs_);
+#ifdef USE_FPS_P15
+  if(p15_nvs_)nvs_close(p15_nvs_);
+#endif
 }
-int FajnyBrother::request_(const std::string &url,const char *type,const std::string &prefix,const uint8_t *payload,size_t size,std::string &response){
+int FajnyBrother::request_(const std::string &url,const char *type,const std::string &prefix,const uint8_t *payload,size_t size,std::string &response,const std::string &token){
+#ifdef USE_FPS_P15
+  if(p15_link_.busy()||!p15_radio_ok_)return -5;
+#endif
+  if(ota_active_||stopping_)return -4;
   Http client(url);auto h=client.h;response.clear();if(!h)return -1;
   bool api=url.compare(0,api_url_.size()+1,api_url_+"/")==0;
-  if(api)esp_http_client_set_header(h,"Authorization",("Bearer "+token_).c_str());
+  if(api)esp_http_client_set_header(h,"Authorization",("Bearer "+(token.empty()?token_:token)).c_str());
   esp_http_client_set_method(h,HTTP_METHOD_POST);esp_http_client_set_header(h,"Content-Type",type);
   if(esp_http_client_open(h,prefix.size()+size)!=ESP_OK||!write_all(h,reinterpret_cast<const uint8_t*>(prefix.data()),prefix.size())||
      (size&&!write_all(h,payload,size)))return -1;
-  int64_t length=esp_http_client_fetch_headers(h);int code=esp_http_client_get_status_code(h);
+  int64_t length=esp_http_client_fetch_headers(h);int code=esp_http_client_get_status_code(h);last_refresh_=api&&client.refresh;
   if(code==204)return code;
   // No chunked/unbounded bodies or redirects; neither API tokens nor labels follow redirects.
   if(length<0||length>16384||esp_http_client_is_chunked_response(h))return -2;
@@ -95,7 +149,7 @@ int FajnyBrother::request_(const std::string &url,const char *type,const std::st
   if(!esp_http_client_is_complete_data_received(h))return -2;
   return code;
 }
-int FajnyBrother::api_(const std::string &path,const std::string &body,std::string &response){return request_(api_url_+path,"application/json",body,nullptr,0,response);}
+int FajnyBrother::api_(const std::string &path,const std::string &body,std::string &response,const std::string &token){return request_(api_url_+path,"application/json",body,nullptr,0,response,token);}
 BrotherIpp::Response FajnyBrother::ipp_(const std::string &prefix,uint32_t id,const uint8_t *data,size_t size){
   std::string response;int code=request_("http://"+host_+":631/ipp/print","application/ipp",prefix,data,size,response);
   return code==200?BrotherIpp::parse(response,id):BrotherIpp::Response{};

@@ -9,10 +9,11 @@
 #include "nvs.h"
 #include "esphome/components/ota/ota_backend.h"
 #include "brother_ipp.h"
+#include "p15_link.h"
 
 namespace esphome::fajny_brother {
 // Independent release: never install the standalone esp32dev image on ESPHome.
-static constexpr const char *VERSION="esphome-br-0.1.0";
+static constexpr const char *VERSION="esphome-gw-0.2.0";
 class FajnyBrother : public Component, public ota::OTAGlobalStateListener {
  public:
   void set_api_url(const std::string &v){api_url_=v;}
@@ -24,6 +25,13 @@ class FajnyBrother : public Component, public ota::OTAGlobalStateListener {
     if(state==ota::OTA_STARTED)ota_active_=true;
     else if(state==ota::OTA_ERROR||state==ota::OTA_ABORT)ota_active_=false;
   }
+#ifdef USE_FPS_P15
+  void set_p15_token(const std::string &v){p15_token_=v;}
+  void set_p15_client(ble_client::BLEClient *v){p15_client_=v;}
+  void set_p15_ble(esp32_ble::ESP32BLE *v){p15_ble_=v;}
+  void set_p15_tracker(esp32_ble_tracker::ESP32BLETracker *v){p15_tracker_=v;}
+  void set_p15_status_sensor(text_sensor::TextSensor *v){p15_sensor_=v;}
+#endif
   void setup() override;
   void loop() override;
   void dump_config() override;
@@ -40,12 +48,24 @@ class FajnyBrother : public Component, public ota::OTAGlobalStateListener {
   std::atomic<bool> connected_{false},stopping_{false},ota_active_{false};
   nvs_handle_t nvs_=0;bool pending_=false,storage_ok_=false;
   static void task_entry_(void *arg);
+#ifdef USE_FPS_P15
+  P15Link p15_link_;ble_client::BLEClient *p15_client_=nullptr;esp32_ble::ESP32BLE *p15_ble_=nullptr;
+  esp32_ble_tracker::ESP32BLETracker *p15_tracker_=nullptr;QueueHandle_t p15_messages_=nullptr;
+  text_sensor::TextSensor *p15_sensor_=nullptr;std::string p15_token_,p15_last_status_;
+  Journal p15_job_;nvs_handle_t p15_nvs_=0;bool p15_pending_=false,p15_storage_ok_=false,p15_radio_ok_=true;
+  bool p15_connected_=false,p15_dirty_=false,p15_refresh_=false;int p15_battery_=-1;
+  std::string p15_printer_status_="unknown",p15_error_;uint32_t p15_probe_at_=0;
+  bool load_p15_();bool save_p15_(const char *outcome,const char *message);bool clear_p15_();
+  void claim_p15_();void report_p15_();void probe_p15_();void telemetry_p15_();
+  bool run_p15_(bool print);void p15_status_(const char *text);
+#endif
+  bool last_refresh_=false;
   void run_();void cycle_();void telemetry_();void claim_();void report_();
   bool save_(const char *outcome,const char *message,uint32_t ipp_job=0);
   bool load_();bool clear_();void status_(const char *text);
-  int api_(const std::string &path,const std::string &body,std::string &response);
+  int api_(const std::string &path,const std::string &body,std::string &response,const std::string &token="");
   int request_(const std::string &url,const char *content_type,const std::string &prefix,
-               const uint8_t *payload,size_t size,std::string &response);
+               const uint8_t *payload,size_t size,std::string &response,const std::string &token="");
   bool download_(const std::string &path,uint8_t *data,size_t size,const std::string &sha);
   BrotherIpp::Response ipp_(const std::string &prefix,uint32_t id,const uint8_t *data=nullptr,size_t size=0);
   BrotherIpp::Response printer_status_();

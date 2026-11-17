@@ -2,7 +2,7 @@
 
 [Projekt](../README.md) · [Brother](BROTHER.md)
 
-Komponent **esphome-br-0.1.0** pridáva do existujúceho ESPHome zariadenia gateway pre **Brother QL-810W cez Wi-Fi/IPP**. Pôvodná samostatná gateway zostáva nezmenená. ESPHome verzia nemá P15/Bluetooth, OLED ani aktualizácie cez aplikáciu štítkov. Aktualizuje sa bežným spôsobom cez ESPHome.
+Komponent **esphome-br-0.1.0** pridáva do existujúceho ESPHome zariadenia gateway pre **Brother QL-810W cez Wi-Fi/IPP**. Pôvodná samostatná gateway zostáva nezmenená. Pôvodná verzia 0.1.0 má iba Brother; voliteľné P15/Bluetooth pridáva verzia 0.2.0 popísaná nižšie. ESPHome verzia nemá OLED ani aktualizácie cez aplikáciu štítkov. Aktualizuje sa bežným spôsobom cez ESPHome.
 
 **Overené na zariadení 17. 11. 2026:** ESP32-C3 s LD2410, inštalácia cez ESPHome OTA a jeden správny fyzický výtlačok na 29 mm páske potvrdený používateľom. Prvá verzia zostáva experimentálna pre ostatné formáty a výpadkové scenáre.
 
@@ -40,3 +40,24 @@ Počas tlače neinštaluj nový firmvér. Počkajte na dokončenie a prázdny fr
 ## Kontroly
 
 IPP kodek v komponente je rovnaký ako natívne testovaný kodek samostatnej gateway. Zostavenie musí zahŕňať aj existujúci radar/API/web komponent, nie iba holú gateway. Softvérová kontrola nie je dôkazom fyzického výtlačku; stav skúšok je v [akceptačných kontrolách](ACCEPTANCE.md).
+
+## P15 cez Bluetooth — verzia 0.2.0
+
+Od **esphome-gw-0.2.0** môže ten istý komponent voliteľne obsluhovať aj P15 cez BLE. Samostatný firmvér esp32dev sa nemení. [Príklad spoločnej konfigurácie](../esphome/p15-brother.example.yaml) dopĺňa sekciu `p15`, jeden `ble_client`, jednu BLE connection slot a netrvalé skenovanie. P15 aj Brother musia mať **rôzne tokeny a samostatné zariadenia** v tlačovej aplikácii. Existujúcu koreňovú sekciu `fajny_brother` rozšír, nevytváraj jej duplikát. MAC P15 ulož do súkromných secrets.
+
+Riadenie siete a tlačových úloh je spoločné: Bluetooth sa zapne až po skončení HTTPS volaní a vypne pred ďalšou komunikáciou s aplikáciou alebo Brotherom. Firmvér čaká na skutočné ukončenie Bluedroid aj BLE controlleru, nie iba na odpojenie tlačiarne. Pri zlyhaní ukončenia zastaví ďalšiu sieťovú prácu a vyžiada reštart. Žiadne trvalé BLE skenovanie ani automatické pripájanie mimo riadenej operácie; kontrola konfigurácie preto vyžaduje `enable_on_boot: false`, `max_connections: 1`, `continuous: false` a `auto_connect: false`.
+
+BLE automat beží bez čakacích slučiek v hlavnej slučke ESPHome. Posiela najviac 20 bajtov na blok, iba s kreditom tlačiarne a s odstupom aspoň 30 ms. Služba FF00, odosielanie FF02 a notifikácie FF01/FF03 zodpovedajú overenej pôvodnej gateway. Úspech vyžaduje AA alebo presné OK **až po odoslaní celého rastra**. Predčasné potvrdenie, samotné odpojenie ani úspešné vloženie bloku do BLE frontu nie sú potvrdením výtlačku. Prerušený pokus zostane neistý a automaticky sa netlačí znova.
+
+P15 má vlastný NVS záznam úlohy; existujúci záznam Brothera zostáva zachovaný. Raster P15 je 96 × 320 bodov (3840 bajtov), overený cez SHA256 pred začatím. Podporuje existujúce textové aj QR úlohy vrátane popisu, ktoré vykreslí server. Prvý probe po štarte a ďalšie kontroly približne každé dve minúty iba čítajú batériu a stav; neposielajú tlačové, posuvné ani zapínacie príkazy. Aplikácia ukazuje výsledok poslednej kontroly, nie trvalé BLE spojenie. Tlačidlo obnovy údajov môže vyžiadať novú kontrolu s odstupom aspoň 30 sekúnd.
+
+Stavový textový senzor P15 v HA ukazuje pripájanie, čítanie, prenos a výsledok; batéria a chyby tlačiarne sa hlásia do tlačovej aplikácie. Aktualizácie sú stále cez ESPHome. BLE zvyšuje obsadenie RAM aj flash a môže znížiť maximálnu praktickú dĺžku Brother štítku; kontrola voľnej pamäte pred tlačou ostáva aktívna.
+
+Natívna kontrola presného rámca, kreditov, časovania, včasného ACK, porúch a pretečenia časovača:
+
+```sh
+c++ -std=c++17 esphome/tools/test_p15_protocol.cpp -o /tmp/p15-protocol-test
+/tmp/p15-protocol-test
+```
+
+Stav reálneho overenia je v [akceptačných kontrolách](ACCEPTANCE.md). Novú podporu treba odlíšiť od staršieho fyzicky overeného Brother-only zostavenia.

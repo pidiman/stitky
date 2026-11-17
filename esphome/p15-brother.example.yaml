@@ -1,0 +1,38 @@
+# Merge with existing ESPHome board/Wi-Fi/API/OTA/radar sections.
+external_components:
+  - source:
+      type: git
+      url: https://github.com/pidiman/stitky
+      ref: main # Pin an audited commit for production.
+      path: esphome/components
+    components: [fajny_brother]
+time:
+  - platform: sntp
+    id: fajny_gateway_time
+esp32_ble:
+  id: p15_ble_stack
+  enable_on_boot: false
+  max_connections: 1
+esp32_ble_tracker:
+  id: p15_scanner
+  scan_parameters:
+    continuous: false
+ble_client:
+  - id: p15_client
+    mac_address: !secret fajny_p15_mac
+    auto_connect: false
+fajny_brother:
+  api_url: https://labels.example.com
+  agent_token: !secret fajny_brother_agent_token
+  printer_host: !secret fajny_brother_printer_host
+  status:
+    name: Brother gateway status
+    entity_category: diagnostic
+  p15:
+    agent_token: !secret fajny_p15_agent_token
+    ble_client_id: p15_client
+    ble_id: p15_ble_stack
+    tracker_id: p15_scanner
+    status:
+      name: P15 gateway status
+      entity_category: diagnostic

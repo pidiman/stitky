@@ -66,3 +66,8 @@ Zostavenie pre ESP32-C3 DevKitM-1 s Arduino frameworkom, ESPHome 2026.10.2, LD24
 Dňa **17. 11. 2026** sa komponent nainštaloval cez existujúce ESPHome OTA do fyzického ESP32-C3 so zachovaným YAML radaru a šifrovaným Home Assistant API. Pôvodná konfigurácia sa pred zmenou zálohovala. LD2410 po štarte odpovedal a poskytol svoju verziu firmvéru; SNTP sa zosynchronizovalo. Nová gateway sa cez vlastný token prihlásila do aplikácie, správne rozpoznala QL-810W a súvislú 29 mm rolku.
 
 **Fyzická tlač je overená:** aplikácia → ESPHome ESP32-C3 → Brother QL-810W. Odoslal sa jediný schválený 40 × 29 mm skúšobný štítok s textom „ESPHome / Brother OK“. Gateway overila raster, Brother potvrdil dokončenie IPP úlohy a používateľ potvrdil jeden správny výtlačok. Gateway potom znovu hlásila pripravenosť. Táto skúška nepotvrdzuje každý formát, maximálnu dĺžku štítku, dlhodobú stabilitu ani obnovu po skutočnom výpadku napájania.
+
+
+## ESPHome P15 BLE / gateway 0.2.0
+
+Lokálne zostavenie kompletnej konfigurácie ESP32-C3 vrátane LD2410, šifrovaného HA API/OTA, webu, SNTP, Brothera a P15 BLE prešlo. Overené presné bajty P15 rámca, bloky 20 bajtov, kredity, 30 ms odstup, 300 ms inicializačná pauza, odmietnutie predčasného AA, platné OK po celom prenose, chybové notifikácie a pretečenie časovača. Zostavenie sa zmestilo do existujúceho OTA slotu bez zmeny partícií. Táto softvérová kontrola sama nepotvrdzuje fyzickú tlač; reálne výsledky sa doplnia po nahratí a skúške zariadenia.

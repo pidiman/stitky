@@ -1,9 +1,10 @@
-"""Brother-only Fajny Print gateway, independent of the standalone firmware."""
+"""Fajny Print ESPHome gateway: Brother and optional P15 BLE."""
 import re
 from urllib.parse import urlsplit
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import text_sensor, esp32
+import esphome.final_validate as fv
+from esphome.components import text_sensor, esp32, ble_client, esp32_ble, esp32_ble_tracker
 from esphome.const import CONF_ID
 DEPENDENCIES = ["esp32", "wifi", "ota"]
 AUTO_LOAD = ["json", "text_sensor"]
@@ -29,6 +30,14 @@ def token(value):
         raise cv.Invalid("agent_token must be the gateway token from the print application")
     return value
 
+P15_SCHEMA = cv.Schema({
+    cv.Required("agent_token"): token,
+    cv.Required("ble_client_id"): cv.use_id(ble_client.BLEClient),
+    cv.Required("ble_id"): cv.use_id(esp32_ble.ESP32BLE),
+    cv.Required("tracker_id"): cv.use_id(esp32_ble_tracker.ESP32BLETracker),
+    cv.Optional("status"): text_sensor.text_sensor_schema(),
+})
+
 CONFIG_SCHEMA = cv.All(cv.Schema({
     cv.GenerateID(): cv.declare_id(FajnyBrother),
     cv.Required("api_url"): endpoint,
@@ -36,6 +45,7 @@ CONFIG_SCHEMA = cv.All(cv.Schema({
     cv.Required("printer_host"): host,
     cv.Optional("max_payload", default=131072): cv.int_range(min=16384,max=131072),
     cv.Optional("status"): text_sensor.text_sensor_schema(),
+    cv.Optional("p15"): P15_SCHEMA,
 }).extend(cv.COMPONENT_SCHEMA), cv.only_on_esp32)
 
 async def to_code(config):
@@ -47,5 +57,37 @@ async def to_code(config):
     if "status" in config:
         sensor = await text_sensor.new_text_sensor(config["status"])
         cg.add(var.set_status_sensor(sensor))
+    if "p15" in config:
+        conf = config["p15"]
+        cg.add_define("USE_FPS_P15")
+        cg.add(var.set_p15_token(conf["agent_token"]))
+        cg.add(var.set_p15_client(await cg.get_variable(conf["ble_client_id"])))
+        cg.add(var.set_p15_ble(await cg.get_variable(conf["ble_id"])))
+        cg.add(var.set_p15_tracker(await cg.get_variable(conf["tracker_id"])))
+        if "status" in conf:
+            sensor = await text_sensor.new_text_sensor(conf["status"])
+            cg.add(var.set_p15_status_sensor(sensor))
     esp32.add_idf_sdkconfig_option("CONFIG_MBEDTLS_CERTIFICATE_BUNDLE", True)
     esp32.add_idf_sdkconfig_option("CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL", True)
+
+
+def final_validate(config):
+    if "p15" not in config:
+        return config
+    full = fv.full_config.get()
+    ble = full.get("esp32_ble", {})
+    tracker = full.get("esp32_ble_tracker", {})
+    if ble.get("enable_on_boot", True) or ble.get("max_connections", 3) != 1:
+        raise cv.Invalid("P15 gateway requires esp32_ble enable_on_boot: false and max_connections: 1")
+    if tracker.get("scan_parameters", {}).get("continuous", True):
+        raise cv.Invalid("P15 gateway requires non-continuous BLE scanning")
+    conf = config["p15"]
+    if conf["agent_token"] == config["agent_token"]:
+        raise cv.Invalid("P15 and Brother require separate agent tokens")
+    clients = full.get("ble_client", [])
+    selected = next((c for c in clients if c["id"] == conf["ble_client_id"]), None)
+    if selected is None or selected.get("auto_connect", True):
+        raise cv.Invalid("The P15 BLE client must use auto_connect: false")
+    return config
+
+FINAL_VALIDATE_SCHEMA = final_validate
