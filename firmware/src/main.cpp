@@ -19,7 +19,7 @@
 #include "printer_info.h"
 
 // Fixed hardware profile proven on this P15: 40x12mm, 96x320, gap stock.
-static constexpr const char* FIRMWARE_VERSION="1.3.0";
+static constexpr const char* FIRMWARE_VERSION="1.3.1";
 static constexpr size_t RASTER_SIZE = 3840;
 static uint8_t raster[RASTER_SIZE];
 static uint8_t bulk[8 + RASTER_SIZE + 6];
@@ -518,7 +518,7 @@ void serialInput() {
 }
 void setup() {
   statusPixels.begin();statusPixels.setBrightness(LED_BRIGHTNESS);statusPixels.clear();statusPixels.show();ledTick();
-  Serial.setRxBufferSize(8192);Serial.begin(115200);pinMode(0,INPUT_PULLUP);pauseWithLed(1000);Serial.println("FAJNY PRINT BRIDGE 1.3.0; NO BUILT-IN TEST PRINTS");
+  Serial.setRxBufferSize(8192);Serial.begin(115200);pinMode(0,INPUT_PULLUP);pauseWithLed(1000);Serial.println("FAJNY PRINT BRIDGE 1.3.1; NO BUILT-IN TEST PRINTS");
   configNvsReady=configStore.begin("p15-hub-config",false);jobNvsReady=jobStore.begin("p15-hub-jobs",false);
   Serial.printf("NVS OPEN config=%d jobs=%d\n",configNvsReady,jobNvsReady);
   if(!configNvsReady||!jobNvsReady){Serial.println("NVS OPEN FAILED; no print jobs will be processed");ledError();while(true){pauseWithLed(1000);}}

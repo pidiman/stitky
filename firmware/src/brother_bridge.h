@@ -1,6 +1,7 @@
 #pragma once
 // Included after the P15 HTTP/queue helpers. Shares Wi-Fi, never the BLE session.
 #include <LittleFS.h>
+#include <esp_littlefs.h>
 #include "brother_ipp.h"
 
 Preferences brotherStore;
@@ -44,12 +45,14 @@ void setupBrother() {
     if(!brotherJobId.length()||!brotherLease.length()){Serial.println("BROTHER PENDING INVALID");return;}
   }
   if(!brotherToken.length()||!brotherHost.length())return;
+  // Initialise the dedicated spool before its first mount. Legacy bytes can
+  // resemble a larger LittleFS volume and abort the ESP32 mount before it can
+  // return an error. Never format a used spool or an outstanding job.
+  if(!brotherHasPending&&!brotherStore.getBool("fs-ready",false)) {
+    if(esp_littlefs_format("spiffs")!=ESP_OK){Serial.println("BROTHER STORAGE INIT FAILED");return;}
+    if(!brotherStore.putBool("fs-ready",true)){Serial.println("BROTHER STORAGE MARKER FAILED");return;}
+  }
   brotherStorageReady=LittleFS.begin(false);
-  // Only a first-use, uninitialised partition may be formatted; never recover
-  // a corrupted, previously used spool by silently erasing it.
-  if(!brotherStorageReady&&!brotherHasPending&&!brotherStore.getBool("fs-ready",false))
-    brotherStorageReady=LittleFS.begin(true);
-  if(brotherStorageReady)brotherStore.putBool("fs-ready",true);
   Serial.printf("BROTHER READY storage=%d pending=%d\n",brotherStorageReady,brotherHasPending);
 }
 BrotherIpp::Response brotherRequest(const std::string& prefix,uint32_t requestId,File* data=nullptr) {
@@ -144,7 +147,9 @@ void brotherTelemetry(bool force=false) {
   DynamicJsonDocument d(1400);d["firmware_version"]=FIRMWARE_VERSION;d["wifi_rssi"]=WiFi.RSSI();
   d["uptime_s"]=static_cast<uint32_t>(esp_timer_get_time()/1000000);d["free_heap"]=ESP.getFreeHeap();
   d["printer_checked"]=true;d["printer_connected"]=found;d["model"]="Brother QL-810W";
-  d["media_ready"]=found?response.text("media-ready").c_str():"";
+  // ArduinoJson borrows const char*; keep this storage alive through serialization.
+  const std::string mediaReady=found?response.text("media-ready"):"";
+  d["media_ready"]=mediaReady.c_str();
   bool idle=found&&response.integer("printer-state")==3&&response.has("printer-state-reasons","none");
   d["printer_status"]=idle?"ready":"unknown";
   d["last_error"]=!brotherStorageReady?"Brother spool storage unavailable":!found?"Brother IPP unavailable":idle?"":"Brother is busy or reports a printer condition";

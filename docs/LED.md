@@ -2,7 +2,7 @@
 
 [Späť na projekt](../README.md) · [Riešenie problémov](TROUBLESHOOTING.md)
 
-Návod opisuje firmvér **1.3.0**, funkciu `ledTick()` a volania meniace stav v [zdroji](../firmware/src/main.cpp). Indikácia je určená pre **externý adresovateľný RGB pixel WS2812/NeoPixel**, nie pre ľubovoľnú vstavanú LED dosky.
+Návod opisuje firmvér **1.3.1**, funkciu `ledTick()` a volania meniace stav v [zdroji](../firmware/src/main.cpp). Indikácia je určená pre **externý adresovateľný RGB pixel WS2812/NeoPixel**, nie pre ľubovoľnú vstavanú LED dosky.
 
 ## Zapojenie
 
@@ -108,6 +108,6 @@ Test trvá **12 sekúnd**, nevytvára tlačovú úlohu a počas sekvencie pozast
 
 Podklady k zapojeniu: [Adafruit NeoPixel](https://learn.adafruit.com/adafruit-neopixel-uberguide/basic-connections). Rozhodujúce správanie tejto verzie je v [zdroji firmvéru](../firmware/src/main.cpp) a [nastavení zostavenia](../firmware/platformio.ini).
 
-## Brother v rozšírení 1.3.0
+## Brother v rozšírení 1.3.1
 
 Fialová naďalej patrí BLE/P15. Brother používa pri prenose a sledovaní IPP úlohy tyrkysovú, po potvrdenom dokončení a prijatí výsledku serverom zelený úspechový efekt. Chyba alebo neistý výsledok sa signalizuje červenou. Zelená v tomto prípade znamená dokončenú IPP úlohu, nie optické overenie výtlačku. Čítanie stavu a rolky cez IPP nič netlačí. Časy samotných efektov zostávajú nezmenené.
