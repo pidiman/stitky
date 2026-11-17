@@ -79,7 +79,9 @@ Pri prenose a čakaní sa používa tyrkysová LED. Po potvrdenom dokončení a 
 
 Softvérové kontroly pokrývajú natívne rozmery, raster/preview zhodu, orez, oddelenie tokenov, sťahovanie iba s platnou rezerváciou, staré úlohy P15 a IPP parser vrátane poškodených správ. Nezávislý QR dekodér číta QR s popisom na všetkých štyroch profiloch. Zostavenie firmvéru a webu prešlo.
 
-Firmvér 1.3.2 bol nahratý na ESP32 a overený po opakovanom štarte: zachoval nastavenia P15/Wi-Fi, cez IPP priamo potvrdil QL-810W v stave idle s 29 mm súvislou rolkou a odoslal stav ready aj správne médium na server. Fyzický výtlačok ešte treba vedome vyskúšať zo štúdia; čítanie stavu ho nenahrádza.
+Firmvér 1.3.2 bol nahratý na ESP32 a overený po opakovanom štarte: zachoval nastavenia P15/Wi-Fi, cez IPP priamo potvrdil QL-810W v stave idle s 29 mm súvislou rolkou a odoslal stav ready aj správne médium na server.
+
+Dňa 17. 11. 2026 používateľ úspešne vytlačil ďalší štítok priamo zo štúdia cez aktualizované ESP32 do Brother QL-810W a potvrdil správny výsledok. **Tlač cez ESP32 je overená a funguje**, vrátane QR kódu s popisom na 29 mm súvislej rolke (server 0.3.1, firmvér 1.3.2). Ostatné uvedené formáty sú zatiaľ overené softvérovo; fyzická skúška sa týkala 29 mm rolky.
 
 ## Zdroje protokolu
 

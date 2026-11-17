@@ -149,6 +149,6 @@ npm --prefix web ci
 npm --prefix web run build
 ```
 
-Mimo Dockera nainštaluj aj fonty DejaVu. Hostiteľské C++ kontroly a zostavenie firmvéru sú v [ESP32 návode](firmware/README.md). Posledná kontrola zdrojového stavu zahŕňala 162 testov API/provisioningu a konfigurácie Brothera a zostavenie webu. Dokumentačné úpravy samy nespúšťajú tlač ani nahratie firmvéru.
+Mimo Dockera nainštaluj aj fonty DejaVu. Hostiteľské C++ kontroly a zostavenie firmvéru sú v [ESP32 návode](firmware/README.md). Posledná kontrola zdrojového stavu zahŕňala 163 testov API/provisioningu a konfigurácie Brothera a zostavenie webu. Dokumentačné úpravy samy nespúšťajú tlač ani nahratie firmvéru.
 
-MVP podporuje P15 40 × 12 mm a štyri Brother profily: 29/62 mm súvislú pásku s dĺžkou 20–200 mm, 29 × 90 mm a 62 × 100 mm. Brother používa 300 dpi, monochromatickú tlač a voliteľný automatický orez. Rozšírenie vyžaduje firmvér ESP32 1.3.2; prvé nahratie cez USB. Detaily a stav hardvérového overenia sú v [Brother návode](docs/BROTHER.md). Všeobecné obrázky, iné médiá, dvojfarebná tlač, oddelené priestory používateľov a hotový RPi agent nie sú súčasťou tejto verzie.
+MVP podporuje P15 40 × 12 mm a štyri Brother profily: 29/62 mm súvislú pásku s dĺžkou 20–200 mm, 29 × 90 mm a 62 × 100 mm. Brother používa 300 dpi, monochromatickú tlač a voliteľný automatický orez. Rozšírenie vyžaduje firmvér ESP32 1.3.2; prvé nahratie cez USB. Tlač zo štúdia cez ESP32 do Brother QL-810W bola 17. 11. 2026 úspešne fyzicky overená na 29 mm súvislej rolke vrátane QR kódu s popisom (server 0.3.1, firmvér 1.3.2). Detaily a rozsah overenia sú v [Brother návode](docs/BROTHER.md). Všeobecné obrázky, iné médiá, dvojfarebná tlač, oddelené priestory používateľov a hotový RPi agent nie sú súčasťou tejto verzie.
