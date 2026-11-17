@@ -56,3 +56,8 @@ Zostavenie firmvéru sa zmestilo do oboch existujúcich OTA slotov bez zmeny par
 ## Zjednodušený OLED / firmvér 2.1.1
 
 Hlavička zostáva, druhý riadok je prázdny a činnosť s detailom sú na spodných dvoch riadkoch. Diagnostické údaje sa nestriedajú; pravidelné API a Brother kontroly neprepínajú displej. Natívna kontrola overuje aj nemennú pripravenú obrazovku, prázdny druhý riadok vo všetkých stavoch, poslednú použitú tlačiareň a zachovanie percent a priorít výsledkov/chýb. Fyzické overenie nového rozloženia sa vykonáva až po nainštalovaní tejto verzie.
+
+
+## ESPHome Brother gateway 0.1.0
+
+Zostavenie pre ESP32-C3 DevKitM-1 s Arduino frameworkom, ESPHome 2026.10.2, LD2410 UART, Home Assistant API, OTA, web_server a SNTP prešlo. Overené odmietnutie nevhodných API adries a neplatných tokenov/hostov; IPP kodek je zhodný s natívne testovanou plnou gateway. Žiadna zmena partícií ani samostatného firmvéru. Prvá verzia je experimentálna: fyzickú tlač a súbeh s radarom treba potvrdiť na zariadení.

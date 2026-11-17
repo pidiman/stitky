@@ -1,0 +1,23 @@
+# Merge these sections into your existing ESPHome configuration.
+# Keep your current board, Wi-Fi, encrypted API, OTA and sensor settings.
+# If time/external_components already exist, append to their existing lists.
+external_components:
+  - source:
+      type: git
+      url: https://github.com/pidiman/stitky
+      ref: main
+      path: esphome/components
+    components: [fajny_brother]
+
+time:
+  - platform: sntp
+    id: fajny_gateway_time
+
+fajny_brother:
+  api_url: https://labels.example.com
+  agent_token: !secret fajny_brother_agent_token
+  printer_host: !secret fajny_brother_printer_host
+  max_payload: 131072
+  status:
+    name: Brother gateway status
+    entity_category: diagnostic

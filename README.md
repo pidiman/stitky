@@ -12,6 +12,7 @@ Aktuálna implementácia používa **ESP32 ako most pre BLE aj sieťovú tlač I
 | Brother QL-810W, rolky, IPP a nastavenie ESP32 | [Brother návod](docs/BROTHER.md) |
 | Textový alebo QR štítok, šablóny a účty | [Používanie štúdia](docs/USER_GUIDE.md) |
 | Malý 0,91″ OLED, zapojenie a aktuálne stavy ESP32 | [OLED displej](docs/OLED.md) |
+| Odľahčená Brother gateway v existujúcom ESPHome zariadení | [ESPHome gateway](docs/ESPHOME.md) |
 | Farby, intervaly blikania, zapojenie a test LED | [Stavová RGB LED](docs/LED.md) |
 | Server, Docker, HTTPS a zálohy | [Nasadenie a správa](docs/DEPLOY.md) |
 | Zostavenie ESP32, Wi-Fi a pripojenie P15 | [ESP32 firmvér](firmware/README.md) |
