@@ -2,7 +2,7 @@
 
 [Projekt](../README.md) · [LED a blikanie](../docs/LED.md) · [Diagnostika](../docs/TROUBLESHOOTING.md)
 
-Firmvér **2.0.0** pre profil `esp32dev`, pôvodný ESP32-D0WDQ6, 4 MB flash. Prepája centrálny server cez Wi-Fi/HTTPS s P15 cez BLE aj Brother QL-810W cez sieťové IPP. Pri štarte nevytvára testové úlohy ani automaticky netlačí.
+Firmvér **2.1.0** pre profil `esp32dev`, pôvodný ESP32-D0WDQ6, 4 MB flash. Prepája centrálny server cez Wi-Fi/HTTPS s P15 cez BLE aj Brother QL-810W cez sieťové IPP. Pri štarte nevytvára testové úlohy ani automaticky netlačí.
 
 ## Hardvér a sieť
 
@@ -141,3 +141,7 @@ c++ -std=c++17 tools/test_brother_body_stream.cpp -o /tmp/brother-body-test
 ## Aktualizácia bez USB
 
 Pozri [Wi-Fi aktualizácie v štúdiu](../docs/OTA.md). Príkaz `OTA_STATUS` cez USB zobrazí podporu OTA, aktuálny slot 0/1 a prítomnosť záznamu aktualizácie; nič neinštaluje ani netlačí.
+
+## Voliteľný OLED 0,91″
+
+Od 2.1.0 je podporovaný bežný SSD1306 128 × 32, I²C adresy 0x3C/0x3D: GND→GND, VCC→3V3, SDA→GPIO21, SCK/SCL→GPIO22. Displej je voliteľný a jeho neprítomnosť nezastaví tlač. Príkazy `OLED_STATUS` a `OLED_SCAN` pomáhajú s diagnostikou. [Kompletný OLED návod](../docs/OLED.md).

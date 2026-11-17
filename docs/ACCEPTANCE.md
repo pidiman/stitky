@@ -45,3 +45,9 @@ Prvý workflow ESP32 firmware release úspešne zostavil a zverejnil stabilné v
 Prešlo 181 API testov a 7 provisioning testov. Kontroly pokrývajú číselné porovnanie stabilných verzií, ignorovanie konceptov/prerelease, nekompatibilné a neúplné vydania, chybné súčty, obmedzené presmerovania a veľkosť, zdieľanú cache a výpadok zdroja. Inštalácia vyžaduje vedomý krok správcu, novšiu verziu a prázdny front; stav sa znovu kontroluje aj po sťahovaní.
 
 V izolovanom prehliadači sa overilo načítanie skutočného vydania 2.0.0 z GitHubu a správny stav Firmvér je aktuálny. So skúšobným starším zariadením tlačidlo Nainštalovať verziu 2.0.0 skutočne stiahlo a overilo obraz z GitHubu a vytvorilo čakajúcu OTA úlohu, ktorá bola potom zrušená pred prevzatím. Skutočné ESP32 sa pri tejto skúške neaktualizovalo a neposlala sa tlač. Mobilná šírka 390 px bola bez vodorovného pretekania; zostavenie webu prešlo.
+
+## Voliteľný OLED / firmvér 2.1.0
+
+Pripravený profil SSD1306 128 × 32 I²C na GPIO21/GPIO22, adresy 0x3C/0x3D. Natívny C++ test overil zobrazované stavy, podržanie chyby/výsledku, neprekrytie novej činnosti starou chybou, percentá, pretečenie millis časovača, orezanie riadkov, 512-bajtový raster, adresovanie a pakety I²C, vynechanie opakovaného obrazu, stlmenie a vypnutie zápisov pri chybe či chýbajúcom displeji. Test IPP prenosu overil aj callback postupu bez zmeny binárnych dát; ostatné natívne kontroly IPP, údajov P15 a Wi-Fi portálu prešli.
+
+Zostavenie firmvéru sa zmestilo do oboch existujúcich OTA slotov bez zmeny partícií. Fyzický modul označený V1.6 zatiaľ nebol overený; predpoklad bežného SSD1306 128 × 32 vychádza z popisu 0,91″ a štyroch pinov. Úspešné zostavenie ani simulovaný obraz sa nevydávajú za potvrdené zobrazenie na zariadení.

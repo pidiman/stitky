@@ -5,11 +5,13 @@
 
 // Stream and File are provided by Arduino/FS (or the native transport test).
 class BrotherBodyStream: public Stream {
-  const std::string& prefix;File& file;size_t position=0;
+  const std::string& prefix;File& file;size_t position=0,delivered=0,total;
+  void (*progress)(size_t,size_t);
+  void report(size_t count){delivered+=count;if(count&&progress)progress(delivered,total);}
  public:
-  BrotherBodyStream(const std::string& p,File& f):prefix(p),file(f){}
+  BrotherBodyStream(const std::string& p,File& f,void (*callback)(size_t,size_t)=nullptr):prefix(p),file(f),total(p.size()+std::max(0,f.available())),progress(callback){}
   int available() override {return int(prefix.size()-position)+file.available();}
-  int read() override {if(position<prefix.size())return uint8_t(prefix[position++]);return file.read();}
+  int read() override {int value=position<prefix.size()?int(uint8_t(prefix[position++])):file.read();if(value>=0)report(1);return value;}
   int peek() override {return position<prefix.size()?uint8_t(prefix[position]):file.peek();}
   void flush() override {}
   size_t write(uint8_t) override {return 0;}
@@ -22,6 +24,6 @@ class BrotherBodyStream: public Stream {
       int remaining=file.available();
       if(remaining>0)count+=file.read(reinterpret_cast<uint8_t*>(buffer+count),std::min(length-count,size_t(remaining)));
     }
-    return count;
+    report(count);return count;
   }
 };

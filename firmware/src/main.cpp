@@ -67,6 +67,7 @@ int probeBattery=-1;
 #endif
 static_assert(LED_COUNT>=1 && LED_COUNT<=16,"Use 1 to 16 status pixels");
 static_assert(LED_BRIGHTNESS>=1 && LED_BRIGHTNESS<=255,"Invalid LED brightness");
+#include "oled_status.h"
 Adafruit_NeoPixel statusPixels(LED_COUNT,LED_PIN,NEO_GRB+NEO_KHZ800);
 enum class LedMode:uint8_t {Portal,Connecting,Ready,BleConnecting,BleConnected,Printing,Updating,Error};
 LedMode ledMode=LedMode::Connecting;
@@ -99,9 +100,23 @@ void ledTick() {
     case LedMode::Error:color=(now%500<250)?statusPixels.Color(255,0,0):0;break;
   }
   if(color!=lastLedColor){statusPixels.fill(color);statusPixels.show();lastLedColor=color;}
+  oledTick();
 }
-void ledSet(LedMode mode){ledMode=mode;ledTick();}
-void ledError(){ledErrorLatched=true;ledTick();}
+void ledSet(LedMode mode){
+  ledMode=mode;
+  if(mode==LedMode::Ready)oledShow(FpsOled::State::Ready);
+  else if(mode==LedMode::Portal)oledShow(FpsOled::State::Portal,"OTVOR 192.168.4.1");
+  else if(mode==LedMode::BleConnecting)oledShow(FpsOled::State::P15Connect,"HLADAM CEZ BLUETOOTH");
+  else if(mode==LedMode::BleConnected)oledShow(FpsOled::State::P15Connect,"BLUETOOTH PRIPOJENY");
+  else if(mode==LedMode::Printing)oledShow(printing?FpsOled::State::P15Print:FpsOled::State::BrotherPrint,"ODOSIELAM RASTER");
+  else if(mode==LedMode::Updating)oledShow(FpsOled::State::Ota,"STAHUJEM FIRMVER");
+  ledTick();
+}
+void ledError(const char* detail=nullptr){
+  ledErrorLatched=true;
+  if(detail||oledModel.state()!=FpsOled::State::Error)oledShow(FpsOled::State::Error,detail?detail:"POZRI APLIKACIU",8000);
+  ledTick();
+}
 void ledHeartbeat(){ledErrorLatched=false;ledSet(LedMode::Ready);}
 void pauseWithLed(unsigned long duration){
   unsigned long started=millis();do{ledTick();delay(5);}while(millis()-started<duration);
@@ -272,37 +287,42 @@ void servicePortal() {
 }
 bool readyWiFi() {
   if(portalActive)return false;
-  if(!ssid.length()){ledSet(LedMode::Connecting);return false;}
+  if(!ssid.length()){oledShow(FpsOled::State::Wifi,"NASTAV SIET CEZ BOOT");ledSet(LedMode::Connecting);return false;}
   if(WiFi.status()!=WL_CONNECTED){
+    oledShow(FpsOled::State::Wifi,"CAKAM NA SIET");
     ledSet(LedMode::Connecting);
     if(!lastWiFiAttempt||millis()-lastWiFiAttempt>=15000){
       lastWiFiAttempt=millis();WiFi.mode(WIFI_STA);WiFi.begin(ssid.c_str(),password.c_str());Serial.println("WIFI CONNECTING");
     }
     return false;
   }
-  if(time(nullptr)<1700000000){ledSet(LedMode::Connecting);return false;}
+  if(time(nullptr)<1700000000){oledShow(FpsOled::State::Clock,"CAKAM NA NTP");ledSet(LedMode::Connecting);return false;}
   return true;
 }
 // Each request owns and frees TLS allocations before the BLE stack is started.
 int post(const String& path,const String& body,String* response=nullptr,bool* refreshRequested=nullptr,const String& overrideToken="") {
   if(refreshRequested)*refreshRequested=false;
   if(!readyWiFi())return -1;
+  if(path.endsWith("/complete")){if(oledModel.state()!=FpsOled::State::Error&&oledModel.state()!=FpsOled::State::Result)oledShow(FpsOled::State::Result,"HLASIM VYSLEDOK API");}
+  else oledShow(FpsOled::State::Server,path.endsWith("/claim")?(overrideToken.length()?"KONTROLA FRONTU BR":"KONTROLA FRONTU P15"):path.endsWith("/firmware/check")?"KONTROLA AKTUALIZACIE":"ODOSIELAM UDAJE");
   ledSet(LedMode::Connecting);
   WiFiClientSecure tls;tls.setCACert(caPem.c_str());tls.setHandshakeTimeout(12);
   HTTPClient http;http.setConnectTimeout(12000);http.setTimeout(15000);
   http.setFollowRedirects(HTTPC_DISABLE_FOLLOW_REDIRECTS);http.useHTTP10(true);
-  if(!http.begin(tls,apiUrl+path)){ledError();return -2;}
+  if(!http.begin(tls,apiUrl+path)){oledServerKnown=false;ledError("API: TLS SPOJENIE");return -2;}
   const char* responseHeaders[]={"X-Printer-Refresh"};http.collectHeaders(responseHeaders,1);
   http.addHeader("Authorization","Bearer "+(overrideToken.length()?overrideToken:agentToken));http.addHeader("Content-Type","application/json");
   int status=http.POST(body);
   if(refreshRequested)*refreshRequested=http.header("X-Printer-Refresh")=="1";
   if(response && status==200){
     int size=http.getSize();
-    if(size<0||size>12000){http.end();tls.stop();ledError();return -3;}
+    if(size<0||size>12000){http.end();tls.stop();ledError("API: VELKOST ODPOVEDE");return -3;}
     *response=http.getString();
-    if(response->length()!=static_cast<unsigned>(size)){http.end();tls.stop();ledError();return -4;}
+    if(response->length()!=static_cast<unsigned>(size)){http.end();tls.stop();ledError("API: NEUPLNA ODPOVED");return -4;}
   }
-  http.end();tls.stop();if(status<200||status>=300)ledError();return status;
+  http.end();tls.stop();oledServerKnown=status>=200&&status<300;
+  if(!oledServerKnown){String detail=status<0?"API: SPOJENIE ZLYHALO":"API: HTTP "+String(status);ledError(detail.c_str());}
+  return status;
 }
 void notify(BLERemoteCharacteristic* c,uint8_t* d,size_t n,bool) {
   if(!n)return;
@@ -325,7 +345,7 @@ bool sendBle(const uint8_t* bytes,size_t length,unsigned long timeoutMs=30000) {
     bool allowed=false;portENTER_CRITICAL(&flowMux);if(credits>0){--credits;allowed=true;}portEXIT_CRITICAL(&flowMux);
     if(!allowed){pauseWithLed(10);continue;}
     size_t count=std::min(static_cast<size_t>(20),length-offset);
-    tx->writeValue(const_cast<uint8_t*>(bytes+offset),count,false);offset+=count;pauseWithLed(30);
+    tx->writeValue(const_cast<uint8_t*>(bytes+offset),count,false);offset+=count;if(printing&&length>20)oledProgress(offset,length);pauseWithLed(30);
   }
   return true;
 }
@@ -387,8 +407,9 @@ void probePrinter() {
   Serial.println("PRINTER INFO START; read-only query commands; no print data");
   lastProbeConnected=connectBle();
   if(!lastProbeConnected) {
-    stopBle();probeError="P15 not reachable over BLE at this check";ledError();
+    stopBle();probeError="P15 not reachable over BLE at this check";ledError("P15: NEDOSTUPNA");
   }else {
+    oledShow(FpsOled::State::P15Info,"MODEL / BATERIA / STAV");
     uint8_t reply[256];size_t count;
     const uint8_t model[]={0x10,0xff,0x20,0xf0},firmware[]={0x10,0xff,0x20,0xf1},
       serial[]={0x10,0xff,0x20,0xf2},battery[]={0x10,0xff,0x50,0xf1},status[]={0x10,0xff,0x40};
@@ -432,7 +453,7 @@ void serviceTelemetry() {
 }
 String printRaster() {
   Serial.printf("BLE START freeHeap=%u\n",ESP.getFreeHeap());
-  if(!connectBle()){stopBle();ledError();return "failed";} // No print bytes have been sent.
+  if(!connectBle()){stopBle();ledError("P15: NEDOSTUPNA");return "failed";} // No print bytes have been sent.
   uint8_t preamble[19]={0};preamble[15]=0x10;preamble[16]=0xff;preamble[17]=0xf1;preamble[18]=2;
   uint8_t header[]={0x1d,0x76,0x30,0,12,0,0x40,0x01};
   memcpy(bulk,header,8);memcpy(bulk+8,raster,RASTER_SIZE);
@@ -442,6 +463,7 @@ String printRaster() {
   auto start=millis();while(sent&&!printerAck&&!printerFault&&bleClient->isConnected()&&millis()-start<15000)pauseWithLed(20);
   bool success=sent&&printerAck&&!printerFault;
   Serial.printf("BLE RESULT sent=%d ack=%d fault=%d\n",sent,printerAck,printerFault);
+  oledResult("P15",success?"printed":"unknown");
   stopBle();
   if(success){successUntil=millis()+1000;ledSet(LedMode::Ready);pauseWithLed(1000);}else ledError();
   return success?"printed":"unknown";
@@ -454,6 +476,7 @@ bool reportPending() {
   Serial.printf("RESULT REPORT HTTP %d\n",status);
   if(status!=200){ledError();return false;} // Keep unresolved job and stop claiming more work.
   if(!jobStore.remove("pending")){Serial.println("NVS CLEAR FAILED: polling stopped");ledError();return false;}
+  oledResult("P15",pendingOutcome);
   pendingId="";pendingLease="";pendingOutcome="";pendingMessage="";ledSet(LedMode::Ready);return true;
 }
 void poll() {
@@ -513,6 +536,10 @@ void serialInput() {
       }else if(serialLine=="LED_TEST"){ledSelfTest=true;ledTestStarted=millis();ledTick();Serial.println("LED TEST START: blue/yellow/green/purple blink/purple/cyan/red/green flash; no printer commands");
       }else if(serialLine=="BROTHER_CHECK"){brotherCheckOnly();
       }else if(serialLine=="PRINTER_INFO"){probeRequested=true;Serial.println("PRINTER INFO REQUESTED; waits for empty queue and 60s probe cooldown");
+      }else if(serialLine=="OLED_STATUS"){oledStatus();
+      }else if(serialLine=="OLED_SCAN"){
+        if(printing||pendingId.length()||brotherHasPending)Serial.println("OLED SCAN deferred: resolve pending jobs first");
+        else oledBegin();
       }else if(serialLine=="OTA_STATUS"){otaStatus();
       }else if(serialLine=="STATUS"){
         Serial.printf("STATUS configured=%d wifi=%d wifi_status=%d pending=%d configNvs=%d jobNvs=%d lastDisconnect=%u saved_ssid=\"%s\" freeHeap=%u\n",configured,WiFi.status()==WL_CONNECTED,(int)WiFi.status(),pendingId.length()>0,configNvsReady,jobNvsReady,lastWiFiDisconnectReason,logSafeSsid(ssid).c_str(),ESP.getFreeHeap());
@@ -525,11 +552,11 @@ void serialInput() {
 }
 void setup() {
   statusPixels.begin();statusPixels.setBrightness(LED_BRIGHTNESS);statusPixels.clear();statusPixels.show();ledTick();
-  Serial.setRxBufferSize(8192);Serial.begin(115200);pinMode(0,INPUT_PULLUP);pauseWithLed(1000);Serial.printf("FAJNY PRINT BRIDGE %s; NO BUILT-IN TEST PRINTS\n",FIRMWARE_VERSION);
+  Serial.setRxBufferSize(8192);Serial.begin(115200);oledBegin();pinMode(0,INPUT_PULLUP);pauseWithLed(1000);Serial.printf("FAJNY PRINT BRIDGE %s; NO BUILT-IN TEST PRINTS\n",FIRMWARE_VERSION);
   configNvsReady=configStore.begin("p15-hub-config",false);jobNvsReady=jobStore.begin("p15-hub-jobs",false);
   Serial.printf("NVS OPEN config=%d jobs=%d\n",configNvsReady,jobNvsReady);
-  if(!configNvsReady||!jobNvsReady){Serial.println("NVS OPEN FAILED; no print jobs will be processed");ledError();while(true){pauseWithLed(1000);}}
-  if(!loadPending()){ledError();while(true){pauseWithLed(1000);}}
+  if(!configNvsReady||!jobNvsReady){Serial.println("NVS OPEN FAILED; no print jobs will be processed");ledError("CHYBA PAMATE NVS");while(true){pauseWithLed(1000);}}
+  if(!loadPending()){ledError("NEVYRIESENA ULOHA");while(true){pauseWithLed(1000);}}
   readConfiguration(configStore.getString("settings",""),false);
   setupOta();
   setupBrother();

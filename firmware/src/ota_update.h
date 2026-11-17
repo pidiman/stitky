@@ -58,12 +58,13 @@ bool otaDownload(const String& path,size_t size,const String& expected){
       if(n<=0){ok=false;break;}
       mbedtls_sha256_update_ret(&context,buffer,n);
       if(Update.write(buffer,n)!=size_t(n)){ok=false;break;}
-      received+=n;lastData=millis();
+      received+=n;lastData=millis();oledProgress(received,size);
     }else if(!http.connected()){ok=false;break;}
     ledTick();delay(1);
   }
   mbedtls_sha256_finish_ret(&context,hash);mbedtls_sha256_free(&context);
   char actual[65]={0};for(unsigned i=0;i<32;++i)sprintf(actual+i*2,"%02x",hash[i]);
+  oledShow(FpsOled::State::Ota,"OVERUJEM SHA256");
   ok=ok&&received==size&&expected==actual;
   http.end();tls.stop();
   // Only a complete, hash-verified image may become bootable.
@@ -85,7 +86,8 @@ void serviceOta(){
     if(!otaStore.remove("id")){ledError();return;}
     otaResultId="";otaBootSha="";otaError="";
   }
-  if(d["update"].isNull()||otaResultId.length())return;
+  if(otaResultId.length()){oledShow(FpsOled::State::Error,"OTA: CAKAM NA API",8000);return;}
+  if(d["update"].isNull()){oledShow(FpsOled::State::Ready);return;}
   String id=d["update"]["id"]|"",path=d["update"]["path"]|"",sha=d["update"]["sha256"]|"";
   size_t size=d["update"]["size"]|0;
   if(id.length()!=36||path!="/api/agent/firmware/"+id+"/image"||sha.length()!=64||size<1024||size>0x1D0000)return;
@@ -96,9 +98,9 @@ void serviceOta(){
   otaResultId=id;stopBle();ledErrorLatched=false;ledSet(LedMode::Updating);
   Serial.println("OTA DOWNLOAD START; no print jobs will be processed");
   if(otaDownload(path,size,sha)){
-    Serial.println("OTA VERIFIED; RESTARTING");pauseWithLed(200);ESP.restart();
+    oledShow(FpsOled::State::Ota,"RESTARTUJEM ESP32");Serial.println("OTA VERIFIED; RESTARTING");pauseWithLed(200);ESP.restart();
   }else{
     otaError="Stiahnutie alebo overenie firmveru zlyhalo; povodny firmver zostal aktivny.";
-    otaStore.putString("error",otaError);ledError();nextOtaCheck=0;Serial.println("OTA FAILED; original firmware retained");
+    otaStore.putString("error",otaError);ledError("AKTUALIZACIA ZLYHALA");nextOtaCheck=0;Serial.println("OTA FAILED; original firmware retained");
   }
 }

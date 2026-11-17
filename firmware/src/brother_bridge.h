@@ -56,7 +56,7 @@ BrotherIpp::Response brotherRequest(const std::string& prefix,uint32_t requestId
   if(!http.begin(client,"http://"+brotherHost+":631/ipp/print"))return result;
   http.addHeader("Content-Type","application/ipp");
   int status;
-  if(data){BrotherBodyStream body(prefix,*data);status=http.sendRequest("POST",&body,prefix.size()+data->size());}
+  if(data){BrotherBodyStream body(prefix,*data,oledProgress);status=http.sendRequest("POST",&body,prefix.size()+data->size());}
   else status=http.POST((uint8_t*)prefix.data(),prefix.size());
   if(status==200){
     int size=http.getSize();
@@ -74,6 +74,7 @@ BrotherIpp::Response brotherStatus() {
   return brotherRequest(BrotherIpp::statusRequest(requestId,brotherUri().c_str()),requestId);
 }
 bool brotherDownload(const String& path,size_t size,const String& expected) {
+  oledShow(FpsOled::State::BrotherDownload,"STAHUJEM A OVERUJEM");
   if(!brotherStorageReady||size<400||size>250000||expected.length()!=64||
      path!="/api/agent/jobs/"+brotherJobId+"/payload")return false;
   WiFiClientSecure tls;tls.setCACert(caPem.c_str());tls.setHandshakeTimeout(12);
@@ -97,6 +98,7 @@ bool brotherDownload(const String& path,size_t size,const String& expected) {
   return expected==actual;
 }
 String brotherWaitForJob(uint32_t job) {
+  oledShow(FpsOled::State::BrotherPrint,"CAKAM NA DOKONCENIE");
   unsigned long began=millis();
   while(millis()-began<55000){
     uint32_t id=brotherRequestId();auto response=brotherRequest(BrotherIpp::jobRequest(id,brotherUri().c_str(),job),id);
@@ -127,6 +129,7 @@ bool brotherReport() {
   if(status!=200){ledError();Serial.printf("BROTHER RESULT HTTP %d; pending retained\n",status);return false;}
   if(!brotherStore.remove("pending")){ledError();return false;}
   bool confirmed=brotherOutcome=="printed";
+  oledResult("BR",brotherOutcome);
   brotherJobId="";brotherLease="";brotherOutcome="";brotherMessage="";brotherIppJob=0;brotherHasPending=false;
   if(brotherStorageReady)LittleFS.remove(BROTHER_FILE);
   ledHeartbeat();
@@ -136,6 +139,7 @@ bool brotherReport() {
 void brotherTelemetry(bool force=false) {
   if(!force&&static_cast<int32_t>(millis()-nextBrotherProbe)<0)return;
   nextBrotherProbe=millis()+30000;
+  oledShow(FpsOled::State::BrotherCheck,"CITAM STAV TLACIARNE");
   auto response=brotherStatus();
   bool found=response.ok()&&response.text("printer-make-and-model").find("QL-810W")!=std::string::npos;
   DynamicJsonDocument d(1400);d["firmware_version"]=FIRMWARE_VERSION;d["wifi_rssi"]=WiFi.RSSI();
@@ -145,6 +149,7 @@ void brotherTelemetry(bool force=false) {
   const std::string mediaReady=found?response.text("media-ready"):"";
   d["media_ready"]=mediaReady.c_str();
   bool idle=found&&response.integer("printer-state")==3&&response.has("printer-state-reasons","none");
+  oledBrotherStatus(found,idle,mediaReady);
   d["printer_status"]=idle?"ready":"unknown";
   d["last_error"]=!brotherStorageReady?"Brother spool storage unavailable":!found?"Brother IPP unavailable":idle?"":"Brother is busy or reports a printer condition";
   String body;serializeJson(d,body);
@@ -175,14 +180,15 @@ void pollBrother() {
   }
   d.clear();d.shrinkToFit();payload=String();
   if(!brotherDownload(path,size,hash)){
-    brotherPersist("failed","Brother payload download/verification failed; no print sent");brotherReport();return;
+    ledError("BR: STITOK NEOVERENY");brotherPersist("failed","Brother payload download/verification failed; no print sent");brotherReport();return;
   }
+  oledShow(FpsOled::State::BrotherCheck,"OVERUJEM ROLKU A STAV");
   auto preflight=brotherStatus();
   if(!preflight.ok()||preflight.text("printer-make-and-model").find("QL-810W")==std::string::npos||
      preflight.integer("printer-state")!=3||!preflight.has("printer-state-reasons","none")||
      !preflight.has("document-format-supported","application/octet-stream")||
      !BrotherIpp::mediaMatches(preflight.text("media-ready"),width,length)){
-    brotherPersist("failed","Brother unavailable, not idle or loaded roll differs from label; no print sent");brotherReport();return;
+    ledError("BR: SKONTROLUJ ROLKU");brotherPersist("failed","Brother unavailable, not idle or loaded roll differs from label; no print sent");brotherReport();return;
   }
   DynamicJsonDocument start(300);start["lease_token"]=lease;String body;serializeJson(start,body);
   if(post("/api/agent/jobs/"+id+"/start",body,nullptr,nullptr,brotherToken)!=200){
@@ -208,7 +214,12 @@ void pollBrother() {
 }
 void brotherCheckOnly() {
   if(!readyWiFi()||!brotherHost.length()){Serial.println("BROTHER CHECK unavailable: configure host and Wi-Fi");return;}
+  oledShow(FpsOled::State::BrotherCheck,"CITAM STAV TLACIARNE");
   auto r=brotherStatus();
+  bool idle=r.ok()&&r.integer("printer-state")==3&&r.has("printer-state-reasons","none");
+  oledBrotherStatus(r.ok(),idle,r.text("media-ready"));
+  if(!r.ok())ledError("BR: NEDOSTUPNY");
+  else oledShow(FpsOled::State::Ready,idle?"BR: PRIPRAVENY":"BR: SKONTROLUJ STAV",3500);
   Serial.printf("BROTHER CHECK response=%d idle=%d model=%s media=%s\n",r.ok(),r.integer("printer-state")==3,
                 r.text("printer-make-and-model").c_str(),r.text("media-ready").c_str());
 }

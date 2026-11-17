@@ -25,6 +25,8 @@ class File {
   }
 };
 #include "../src/brother_body_stream.h"
+size_t lastDone=0,lastTotal=0,progressCalls=0;
+void progress(size_t done,size_t total){assert(done>=lastDone&&done<=total);lastDone=done;lastTotal=total;++progressCalls;}
 int main(){
  std::string prefix("\x01\x01\0\x02\0\0\0\x7b",8);
  prefix+=std::string(317,'p');
@@ -41,6 +43,9 @@ int main(){
   assert(file.blockReads<=(payload.size()+chunk-1)/chunk+1);
   assert(stream.readBytes(buffer.data(),buffer.size())==0);assert(stream.read()==-1);
  }
+ File tracked(payload);BrotherBodyStream monitored(prefix,tracked,progress);std::string copied;char chunk[1460];
+ while(monitored.available()){size_t n=monitored.readBytes(chunk,sizeof(chunk));copied.append(chunk,n);}
+ assert(copied==prefix+payload&&lastDone==copied.size()&&lastTotal==copied.size()&&progressCalls>1);
  File file(payload);BrotherBodyStream body(prefix,file);
  assert(body.read()==1&&body.read()==1&&body.peek()==0);
  std::cout<<"IPP body byte equality, binary data, prefix/file boundaries and block reads passed\n";

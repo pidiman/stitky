@@ -11,6 +11,7 @@ Aktuálna implementácia používa **ESP32 ako most pre BLE aj sieťovú tlač I
 | Aktualizácia firmvéru ESP32 cez Wi-Fi | [Wi-Fi aktualizácie](docs/OTA.md) |
 | Brother QL-810W, rolky, IPP a nastavenie ESP32 | [Brother návod](docs/BROTHER.md) |
 | Textový alebo QR štítok, šablóny a účty | [Používanie štúdia](docs/USER_GUIDE.md) |
+| Malý 0,91″ OLED, zapojenie a aktuálne stavy ESP32 | [OLED displej](docs/OLED.md) |
 | Farby, intervaly blikania, zapojenie a test LED | [Stavová RGB LED](docs/LED.md) |
 | Server, Docker, HTTPS a zálohy | [Nasadenie a správa](docs/DEPLOY.md) |
 | Zostavenie ESP32, Wi-Fi a pripojenie P15 | [ESP32 firmvér](firmware/README.md) |
@@ -157,3 +158,5 @@ MVP podporuje P15 40 × 12 mm a štyri Brother profily: 29/62 mm súvislú pásk
 Od servera 0.4.0 a firmvéru 2.0.0 je dostupná aktualizácia ESP32 cez Wi-Fi priamo v samostatnej sekcii **Aktualizácie**. Staršie ESP32 potrebuje jednorazovú USB migráciu na dve aplikačné partície; ďalšie aktualizácie už prebiehajú zo štúdia. [Postup a limity](docs/OTA.md).
 
 Sekcia **Aktualizácie** kontroluje najnovšie stabilné vydanie firmvéru na GitHube a ponúka jeho inštaláciu jedným tlačidlom. `.bin` aj kontrolný manifest publikuje automatické zostavenie; súbor už netreba ručne vyhľadávať a nahrávať. [Postup a vydania firmvéru](docs/OTA.md).
+
+Firmvér **2.1.0** pridáva voliteľný OLED SSD1306 128 × 32 cez I²C (SDA GPIO21, SCK/SCL GPIO22, VCC 3V3). Zobrazuje aktuálnu činnosť, prenos, výsledky a sieťové údaje. [Zapojenie, predpokladaný modul a diagnostika](docs/OLED.md).
