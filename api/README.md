@@ -115,3 +115,14 @@ GET /api/profiles lists the supported P15 and Brother profiles. Labels, template
 Brother jobs store native monochrome raster instructions with payload_format brother-raster-v1, raster_width 720 and native raster_height. Their claim returns size, sha256, payload_path, media_width_mm and media_length_mm instead of base64. GET /api/agent/jobs/{id}/payload requires the device bearer and X-Lease-Token and only returns a leased Brother payload. Existing P15 claim shape, rasters and fingerprints are preserved. New profile metadata uses style_json; geometry/format columns and printer_model are added with legacy defaults.
 
 Telemetry accepts media_ready as a bounded printable string, clears stale media on a new unanswered printer probe, and never assumes an IPP job is physically verified. See [Brother operating notes](../docs/BROTHER.md).
+
+## Firmvér ESP32 / OTA (server 0.4.0)
+
+- `GET /api/firmware`: metadáta pripravených verzií, posledné aktualizácie a spoločná prestávka tlače; prihlásený používateľ.
+- `POST /api/firmware/releases`: iba správca; binárne telo aplikačného obrazu a hlavička `X-Firmware-Version`. Server overí ESP32 obraz, SHA-256 a zabudovaný marker produktu/verzie/rozloženia; limit `0x1D0000` bajtov.
+- `POST /api/firmware/updates`: iba správca; JSON `agent_id`, `sha256`. Vyžaduje online OTA most a prázdny globálny front vrátane leased/printing úloh.
+- `POST /api/firmware/updates/{id}/cancel`: iba správca, len pred prevzatím zariadením.
+- `POST /api/agent/firmware/check`: kľúč zariadenia; JSON `version`, `layout` a voliteľne `result_id`, `boot_sha256` alebo `error`. Manifest sa prevezme iba raz; výsledok sa môže opakovane potvrdiť.
+- `GET /api/agent/firmware/{id}/image`: iba pridelené zariadenie počas inštalácie; binárny obraz, žiadny verejný odkaz.
+
+Stavy: `queued` → `installing` → `succeeded` po overení obrazu po reštarte; `failed`, `unknown` alebo `cancelled` pri neúspechu. Aktívna aktualizácia dočasne blokuje pridávanie tlače aj claim všetkých agentov; limit 10 minút uvoľní prestávku bez opakovania neistého zápisu. Nová telemetria hlavného mosta pridáva `ota_supported`, `ota_layout` a `ota_slot`. [Podrobnosti a limity](../docs/OTA.md).

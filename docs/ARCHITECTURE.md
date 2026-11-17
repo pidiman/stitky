@@ -107,3 +107,7 @@ Viac lokalít znamená ďalšie ESP32 s vlastným tokenom, Wi-Fi a cieľovou P15
 Brother claim vracia malý manifest s formátom brother-raster-v1, veľkosťou, SHA-256 a cestou k binárnemu obsahu. GET payload vyžaduje token konkrétneho zariadenia aj platný lease token a je povolený iba pred začatím. ESP32 uloží súbor do LittleFS a až po overení a kontrole média volá start. P15 claim zostáva s raster_base64 a rozmermi 96 × 320.
 
 Jedno ESP32 drží dva nezávislé tokeny. Pracuje sekvenčne a nevyriešená úloha má prednosť pred novou tlačou. Brother sa obsluhuje cez IPP Print-Job/Get-Job-Attributes. Jeho pending záznam a číslo IPP úlohy sú v samostatnom NVS priestore; pri reštarte sa neopakuje fyzické odoslanie. IPP stav nevyžaduje dostupnosť tlačiarne z centrálneho servera.
+
+## Aktualizácie ESP32 cez server
+
+Server 0.4.0 ukladá obrazy a stav OTA do SQLite. Správca najprv pripraví a overí obraz a potom samostatne zadá inštaláciu online hlavnému mostu. Aktívna aktualizácia dočasne blokuje nový tlačový front aj claim všetkých agentov, aby spoločné ESP32 nezačalo počas aktualizácie tlačiť. ESP32 sa pýta na aktualizáciu cez vlastné odchádzajúce HTTPS, zapisuje iba neaktívny slot a po stiahnutí kontroluje SHA-256. Po reštarte prečíta hash skutočne bežiaceho obrazu a až jeho potvrdenie uzavrie aktualizáciu ako úspešnú. Záznam NVS umožňuje opakovať hlásenie výsledku; inštalácia sa po neistote automaticky neopakuje. Podrobnosti rozloženia pamäte, prvotnej USB migrácie a limitov sú v [OTA návode](OTA.md).

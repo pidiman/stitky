@@ -1,8 +1,8 @@
-# ESP32 most pre MarkLife P15
+# ESP32 most pre MarkLife P15 a Brother QL-810W
 
 [Projekt](../README.md) · [LED a blikanie](../docs/LED.md) · [Diagnostika](../docs/TROUBLESHOOTING.md)
 
-Firmvér **1.3.2** pre profil `esp32dev`, pôvodný ESP32-D0WDQ6, 4 MB flash. Prepája centrálny server cez Wi-Fi/HTTPS s tlačiarňou P15 cez BLE. Pri štarte nevytvára testové úlohy ani automaticky netlačí.
+Firmvér **2.0.0** pre profil `esp32dev`, pôvodný ESP32-D0WDQ6, 4 MB flash. Prepája centrálny server cez Wi-Fi/HTTPS s P15 cez BLE aj Brother QL-810W cez sieťové IPP. Pri štarte nevytvára testové úlohy ani automaticky netlačí.
 
 ## Hardvér a sieť
 
@@ -14,7 +14,9 @@ Firmvér **1.3.2** pre profil `esp32dev`, pôvodný ESP32-D0WDQ6, 4 MB flash. Pr
 
 Nejde o generický firmvér pre každú ESP32 variantu. Iné dosky, tlačiarne a formáty treba prispôsobiť. Bežná prevádzka nevyžaduje prichádzajúce spojenie z internetu na ESP32.
 
-## Zostavenie a nahratie
+## Zostavenie a prvé nahratie cez USB
+
+Pri prechode z 1.3.x ide aj o jednorazovú zmenu partícií. Najprv vykonaj [prípravu a zálohu pre OTA migráciu](../docs/OTA.md#jednorazový-prechod-zo-starého-firmvéru); nevymazávaj celú flash. Následné aktualizácie spustíš priamo v aplikácii.
 
 Z koreňa repozitára:
 
@@ -33,7 +35,7 @@ Názov portu nahraď podľa svojho systému; môže ísť napríklad o /dev/ttyU
 | Framework | Arduino |
 | ArduinoJson | 6.21.5 |
 | Adafruit NeoPixel | 1.12.3 |
-| Partície | huge_app.csv |
+| Partície | partitions_ota.csv; dve aplikácie + 256 KiB spool |
 | Monitor | 115200 baud |
 | LED | GPIO18, 1 RGB pixel, jas 32/255 |
 
@@ -135,3 +137,7 @@ Test blokového IPP prenosu bez hardvéru:
 c++ -std=c++17 tools/test_brother_body_stream.cpp -o /tmp/brother-body-test
 /tmp/brother-body-test
 ```
+
+## Aktualizácia bez USB
+
+Pozri [Wi-Fi aktualizácie v štúdiu](../docs/OTA.md). Príkaz `OTA_STATUS` cez USB zobrazí podporu OTA, aktuálny slot 0/1 a prítomnosť záznamu aktualizácie; nič neinštaluje ani netlačí.

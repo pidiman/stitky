@@ -2,7 +2,7 @@
 
 [Späť na projekt](../README.md) · [Riešenie problémov](TROUBLESHOOTING.md)
 
-Návod opisuje firmvér **1.3.2**, funkciu `ledTick()` a volania meniace stav v [zdroji](../firmware/src/main.cpp). Indikácia je určená pre **externý adresovateľný RGB pixel WS2812/NeoPixel**, nie pre ľubovoľnú vstavanú LED dosky.
+Návod opisuje firmvér **2.0.0**, funkciu `ledTick()` a volania meniace stav v [zdroji](../firmware/src/main.cpp). Indikácia je určená pre **externý adresovateľný RGB pixel WS2812/NeoPixel**, nie pre ľubovoľnú vstavanú LED dosky.
 
 ## Zapojenie
 
@@ -38,6 +38,7 @@ ESP32 GND ───────────────────────�
 | Fialová svieti | Počas kroku | — | BLE spojenie a počiatočné prenosové kredity sú pripravené |
 | Tyrkysová bliká | 150 ms | 150 ms | Prenos tlačového zadania a čakanie na potvrdenie P15 |
 | Jasná zelená bliká | 100 ms | 100 ms | Potvrdený prenos; efekt trvá približne 1 sekundu |
+| Biela bliká | 200 ms | 200 ms | Sťahovanie, overovanie a zápis Wi-Fi aktualizácie do neaktívnej partície |
 | Červená bliká | 250 ms | 250 ms | Chyba API/TLS, BLE, konfigurácie, NVS alebo neistý výsledok |
 
 Fialový trvalý stav sa po spojení zámerne podrží približne **200 ms**. Pri čítaní údajov tlačiarne môže zostať počas dlhšieho čítania. Pred samotným prenosom tlače ho vystrieda tyrkysová.
@@ -55,6 +56,8 @@ Blokujúce Wi-Fi/TLS/BLE volanie môže dočasne podržať poslednú farbu a zas
 **Obnovenie údajov P15 bez tlače:** fialová pri spojení a čítaní → žltá pri odosielaní výsledku → zelená. Nejde o tlač a nespustí sa úspechový efekt tlače.
 
 Kontrola frontu je plánovaná približne každých **10 s** a telemetria každých **30 s**, keď nie je most zaneprázdnený. Krátka žltá počas nečinnosti preto býva normálna. Dlhšia operácia môže tieto intervaly predĺžiť.
+
+**Wi-Fi aktualizácia:** biela počas sťahovania a zápisu → reštart → žltá pri Wi-Fi/NTP/API → zelená po kontakte so serverom. Dokončenie over v aplikácii; LED sama nepotvrdzuje novú verziu.
 
 ## Priorita a zrušenie chyby
 
@@ -89,7 +92,8 @@ LED_TEST
 | 4,5–6 s | Fialová bliká |
 | 6–7,5 s | Fialová svieti |
 | 7,5–9 s | Tyrkysová bliká |
-| 9–10,5 s | Červená bliká |
+| 9–10,5 s | Biela bliká | 200 ms | 200 ms | Sťahovanie, overovanie a zápis Wi-Fi aktualizácie do neaktívnej partície |
+| Červená bliká |
 | 10,5–12 s | Jasná zelená bliká |
 
 Test trvá **12 sekúnd**, nevytvára tlačovú úlohu a počas sekvencie pozastaví polling aj odosielanie telemetrie. Končí výpisom `LED TEST DONE; normal status restored`. Vráti normálny stav vrátane prípadnej zapamätanej chyby; chybu sám nemaže. Spúšťaj ho počas nečinnosti.

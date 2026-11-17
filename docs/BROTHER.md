@@ -14,7 +14,7 @@ Fajny Print Studio / API
 
 Samostatné Raspberry Pi nie je potrebné. ESP32 a Brother musia mať vzájomne dostupné sieťové spojenie. Server môže zostať mimo domácej LAN; tlačiareň sa nevystavuje do internetu. Každá tlačiareň má v štúdiu vlastné zariadenie a vlastný token, hoci obe obsluhuje jedna doska.
 
-Rozšírenie vyžaduje **firmvér ESP32 1.3.2**. Starší firmvér 1.2.1 podporuje len P15 a nemá vzdialenú aktualizáciu. Na prvé nahratie je potrebný dátový USB kábel; potom zariadenie opäť funguje samostatne cez Wi-Fi.
+Rozšírenie vyžaduje **firmvér ESP32 1.3.2**. Starší firmvér 1.2.1 podporuje len P15 a nemá vzdialenú aktualizáciu. Na prvé nahratie je potrebný dátový USB kábel; potom zariadenie opäť funguje samostatne cez Wi-Fi. Od firmvéru 2.0.0 je dostupná aj [aktualizácia firmvéru zo štúdia cez Wi-Fi](OTA.md); prechod zo starého rozloženia pamäte vyžaduje jednorazovú USB migráciu.
 
 ## Aktuálny rozsah
 

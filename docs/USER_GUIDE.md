@@ -100,3 +100,7 @@ Najprv v tlačových nastaveniach vyber Brother zariadenie. V editore sa objaví
 Založená rolka v karte tlačiarne je čítaná cez IPP. Musí zodpovedať zvolenému formátu. Pri nesúlade sa tlač neposiela. Pozastavené zariadenie má tlačidlo tlače vypnuté. Po prvom nahratí a nastavení ESP32 je potrebné trvalé spojenie overiť; podrobnosti sú v [Brother návode](BROTHER.md).
 
 Dokončenie Brother IPP úlohy a potvrdenie AA/OK od P15 sú odlišné zdroje stavu printed; oba vyžadujú fyzickú kontrolu, ak potrebuješ potvrdiť kvalitu štítku.
+
+## Aktualizácia ESP32
+
+Správca otvorí **Zariadenia → Aktualizácia ESP32 cez Wi-Fi**, pripraví súbor novej verzie a vedome spustí inštaláciu. Tlač sa počas nej dočasne pozastaví; po reštarte aplikácia potvrdí skutočne bežiaci firmvér. [Celý postup](OTA.md).

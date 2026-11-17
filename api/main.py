@@ -25,10 +25,12 @@ from pydantic import BaseModel, Field, field_validator
 try:
     from .brother import render_brother, profile_catalog, model_for_profile, job_geometry, MEDIA
     from .accounts import install as install_accounts
+    from . import firmware_updates
     from .rendering import render_canvas, STYLE_DEFAULTS, style_dict
 except ImportError:
     from brother import render_brother, profile_catalog, model_for_profile, job_geometry, MEDIA
     from accounts import install as install_accounts
+    import firmware_updates
     from rendering import render_canvas, STYLE_DEFAULTS, style_dict
 
 LEASE_SECONDS = 90
@@ -118,6 +120,9 @@ class PauseInput(BaseModel):
 
 class Telemetry(BaseModel):
     model_config = {"extra": "forbid"}
+    ota_supported: bool | None = Field(default=None, strict=True)
+    ota_layout: Literal["dual1856-v1"] | None = None
+    ota_slot: int | None = Field(default=None, ge=0, le=1, strict=True)
     firmware_version: str | None = Field(default=None, max_length=64)
     wifi_rssi: int | None = Field(default=None, ge=-127, le=0, strict=True)
     uptime_s: int | None = Field(default=None, ge=0, le=2**53, strict=True)
@@ -260,6 +265,7 @@ def create_app(config: dict | None = None) -> FastAPI:
                                        "raster_height": "INTEGER NOT NULL DEFAULT 320"}.items():
                 if column not in job_columns:
                     conn.execute(f"ALTER TABLE jobs ADD COLUMN {column} {definition}")
+            firmware_updates.initialize(conn)
             agent_columns = {row[1] for row in conn.execute("PRAGMA table_info(agents)")}
             for column, definition in {
                 "printer_model": "TEXT NOT NULL DEFAULT 'p15'",
@@ -280,7 +286,7 @@ def create_app(config: dict | None = None) -> FastAPI:
         initialize_accounts()
         yield
 
-    app = FastAPI(title="Fajny Print Studio", version="0.3.1", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="Fajny Print Studio", version="0.4.0", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.db_path = db_path
 
     def expire(conn):
@@ -304,6 +310,8 @@ def create_app(config: dict | None = None) -> FastAPI:
                 raise HTTPException(401, "Invalid agent token")
             conn.execute("UPDATE agents SET last_seen=? WHERE id=?", (time.time(), row["id"]))
             return row["id"]
+
+    firmware_updates.install(app, transaction, admin, administrator, device)
 
     def stored_style(row):
         return {"kind":"text", "qr_caption":"", "profile_id":"p15_40x12", "length_mm":50, "auto_cut":True, **STYLE_DEFAULTS, **json.loads(row["style_json"] or "{}")}
@@ -329,7 +337,8 @@ def create_app(config: dict | None = None) -> FastAPI:
         now = time.time()
         with transaction() as conn:
             expire(conn)
-            return [{"id": r["id"], "name": r["name"], "printer_model": r["printer_model"], "last_seen": utc(r["last_seen"]) if r["last_seen"] else None,
+            updating = bool(firmware_updates.active(conn))
+            return [{"updating": updating, "id": r["id"], "name": r["name"], "printer_model": r["printer_model"], "last_seen": utc(r["last_seen"]) if r["last_seen"] else None,
                      "status": "online" if r["last_seen"] and now - r["last_seen"] < 45 else "offline",
                      "telemetry": json.loads(r["telemetry_json"] or "{}"),
                      "telemetry_received_at": r["telemetry_received_at"],
@@ -408,6 +417,8 @@ def create_app(config: dict | None = None) -> FastAPI:
                 if previous["fingerprint"] != fingerprint:
                     raise HTTPException(409, "Idempotency key already used with different content")
                 return [public_job(conn.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()) for job_id in json.loads(previous["job_ids"])]
+            if firmware_updates.active(conn):
+                raise HTTPException(409, "Prebieha aktualizácia ESP32. Po jej dokončení môžeš tlačiť.")
             target = conn.execute("SELECT printer_model FROM agents WHERE id=?", (body.agent_id,)).fetchone()
             if target is None:
                 raise HTTPException(404, "Agent not found")
@@ -466,6 +477,8 @@ def create_app(config: dict | None = None) -> FastAPI:
     def claim(agent: str = Depends(device)):
         with transaction() as conn:
             expire(conn)
+            if firmware_updates.active(conn):
+                return Response(status_code=204)
             if conn.execute("SELECT paused FROM agents WHERE id=?", (agent,)).fetchone()[0]:
                 return Response(status_code=204)
             # A lost poll response cannot cause this device to receive another job.

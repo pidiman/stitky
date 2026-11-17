@@ -17,9 +17,11 @@
 #include <Adafruit_NeoPixel.h>
 #include "portal_page.h"
 #include "printer_info.h"
+#include <esp_ota_ops.h>
+extern bool otaCapable;
 
 // Fixed hardware profile proven on this P15: 40x12mm, 96x320, gap stock.
-static constexpr const char* FIRMWARE_VERSION="1.3.2";
+#include "firmware_version.h"
 static constexpr size_t RASTER_SIZE = 3840;
 static uint8_t raster[RASTER_SIZE];
 static uint8_t bulk[8 + RASTER_SIZE + 6];
@@ -66,7 +68,7 @@ int probeBattery=-1;
 static_assert(LED_COUNT>=1 && LED_COUNT<=16,"Use 1 to 16 status pixels");
 static_assert(LED_BRIGHTNESS>=1 && LED_BRIGHTNESS<=255,"Invalid LED brightness");
 Adafruit_NeoPixel statusPixels(LED_COUNT,LED_PIN,NEO_GRB+NEO_KHZ800);
-enum class LedMode:uint8_t {Portal,Connecting,Ready,BleConnecting,BleConnected,Printing,Error};
+enum class LedMode:uint8_t {Portal,Connecting,Ready,BleConnecting,BleConnected,Printing,Updating,Error};
 LedMode ledMode=LedMode::Connecting;
 bool ledErrorLatched=false,ledSelfTest=false;
 unsigned long successUntil=0,ledTestStarted=0;
@@ -93,6 +95,7 @@ void ledTick() {
     case LedMode::BleConnecting:color=(now%1000<500)?statusPixels.Color(180,0,255):0;break;
     case LedMode::BleConnected:color=statusPixels.Color(180,0,255);break;
     case LedMode::Printing:color=(now%300<150)?statusPixels.Color(0,255,255):0;break;
+    case LedMode::Updating:color=(now%400<200)?statusPixels.Color(200,200,200):0;break;
     case LedMode::Error:color=(now%500<250)?statusPixels.Color(255,0,0):0;break;
   }
   if(color!=lastLedColor){statusPixels.fill(color);statusPixels.show();lastLedColor=color;}
@@ -408,6 +411,8 @@ void serviceTelemetry() {
   if(static_cast<int32_t>(millis()-nextTelemetry)<0)return;
   nextTelemetry=millis()+30000;
   DynamicJsonDocument d(2000);
+  const auto* slot=esp_ota_get_running_partition();
+  d["ota_supported"]=otaCapable;d["ota_layout"]=FPS_OTA_LAYOUT;d["ota_slot"]=slot?int(slot->subtype)-ESP_PARTITION_SUBTYPE_APP_OTA_0:0;
   d["firmware_version"]=FIRMWARE_VERSION;d["wifi_rssi"]=WiFi.RSSI();
   d["uptime_s"]=static_cast<uint32_t>(esp_timer_get_time()/1000000);d["free_heap"]=ESP.getFreeHeap();
   d["printer_checked"]=probeReportPending;
@@ -492,6 +497,7 @@ void poll() {
   reportPending();
 }
 #include "brother_bridge.h"
+#include "ota_update.h"
 
 void serialInput() {
   while(Serial.available()){
@@ -507,6 +513,7 @@ void serialInput() {
       }else if(serialLine=="LED_TEST"){ledSelfTest=true;ledTestStarted=millis();ledTick();Serial.println("LED TEST START: blue/yellow/green/purple blink/purple/cyan/red/green flash; no printer commands");
       }else if(serialLine=="BROTHER_CHECK"){brotherCheckOnly();
       }else if(serialLine=="PRINTER_INFO"){probeRequested=true;Serial.println("PRINTER INFO REQUESTED; waits for empty queue and 60s probe cooldown");
+      }else if(serialLine=="OTA_STATUS"){otaStatus();
       }else if(serialLine=="STATUS"){
         Serial.printf("STATUS configured=%d wifi=%d wifi_status=%d pending=%d configNvs=%d jobNvs=%d lastDisconnect=%u saved_ssid=\"%s\" freeHeap=%u\n",configured,WiFi.status()==WL_CONNECTED,(int)WiFi.status(),pendingId.length()>0,configNvsReady,jobNvsReady,lastWiFiDisconnectReason,logSafeSsid(ssid).c_str(),ESP.getFreeHeap());
         Serial.printf("BROTHER STATUS configured=%d pending=%d\n",brotherToken.length()>0&&brotherHost.length()>0,brotherHasPending);
@@ -518,12 +525,13 @@ void serialInput() {
 }
 void setup() {
   statusPixels.begin();statusPixels.setBrightness(LED_BRIGHTNESS);statusPixels.clear();statusPixels.show();ledTick();
-  Serial.setRxBufferSize(8192);Serial.begin(115200);pinMode(0,INPUT_PULLUP);pauseWithLed(1000);Serial.println("FAJNY PRINT BRIDGE 1.3.2; NO BUILT-IN TEST PRINTS");
+  Serial.setRxBufferSize(8192);Serial.begin(115200);pinMode(0,INPUT_PULLUP);pauseWithLed(1000);Serial.printf("FAJNY PRINT BRIDGE %s; NO BUILT-IN TEST PRINTS\n",FIRMWARE_VERSION);
   configNvsReady=configStore.begin("p15-hub-config",false);jobNvsReady=jobStore.begin("p15-hub-jobs",false);
   Serial.printf("NVS OPEN config=%d jobs=%d\n",configNvsReady,jobNvsReady);
   if(!configNvsReady||!jobNvsReady){Serial.println("NVS OPEN FAILED; no print jobs will be processed");ledError();while(true){pauseWithLed(1000);}}
   if(!loadPending()){ledError();while(true){pauseWithLed(1000);}}
   readConfiguration(configStore.getString("settings",""),false);
+  setupOta();
   setupBrother();
   WiFi.onEvent(wifiDiagnosticEvent);
   WiFi.persistent(false);
@@ -534,6 +542,7 @@ void setup() {
 }
 void loop() {
   ledTick();serialInput();servicePortal();
+  serviceOta();
   if(digitalRead(0)==LOW){if(!bootHeldSince)bootHeldSince=millis();if(millis()-bootHeldSince>=3000){startPortal();bootHeldSince=millis();}}else bootHeldSince=0;
   if(!ledSelfTest&&configured&&!brotherHasPending&&readyWiFi()&&static_cast<int32_t>(millis()-nextPoll)>=0){nextPoll=millis()+10000;poll();}
   if(!ledSelfTest&&configured&&!pendingId.length()&&readyWiFi())pollBrother();

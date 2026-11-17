@@ -36,12 +36,14 @@ void setupBrother() {
     if(!brotherJobId.length()||!brotherLease.length()){Serial.println("BROTHER PENDING INVALID");return;}
   }
   if(!brotherToken.length()||!brotherHost.length())return;
-  // Initialise the dedicated spool before its first mount. Legacy bytes can
-  // resemble a larger LittleFS volume and abort the ESP32 mount before it can
-  // return an error. Never format a used spool or an outstanding job.
-  if(!brotherHasPending&&!brotherStore.getBool("fs-ready",false)) {
+  // The one-time OTA migration relocates the spool. Only initialise the
+  // new layout when there is no outstanding job; NVS/Wi-Fi remain untouched.
+  const String storageLayout="ota2-256k-v1";
+  bool firstLayout=brotherStore.getString("fs-layout","")!=storageLayout;
+  if(!brotherHasPending&&firstLayout) {
     if(esp_littlefs_format("spiffs")!=ESP_OK){Serial.println("BROTHER STORAGE INIT FAILED");return;}
-    if(!brotherStore.putBool("fs-ready",true)){Serial.println("BROTHER STORAGE MARKER FAILED");return;}
+    if(brotherStore.putString("fs-layout",storageLayout)!=storageLayout.length()){Serial.println("BROTHER STORAGE MARKER FAILED");return;}
+    brotherStore.putBool("fs-ready",true);
   }
   brotherStorageReady=LittleFS.begin(false);
   Serial.printf("BROTHER READY storage=%d pending=%d\n",brotherStorageReady,brotherHasPending);

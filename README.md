@@ -8,6 +8,7 @@ Aktuálna implementácia používa **ESP32 ako most pre BLE aj sieťovú tlač I
 
 | Čo potrebuješ | Návod |
 |---|---|
+| Aktualizácia firmvéru ESP32 cez Wi-Fi | [Wi-Fi aktualizácie](docs/OTA.md) |
 | Brother QL-810W, rolky, IPP a nastavenie ESP32 | [Brother návod](docs/BROTHER.md) |
 | Textový alebo QR štítok, šablóny a účty | [Používanie štúdia](docs/USER_GUIDE.md) |
 | Farby, intervaly blikania, zapojenie a test LED | [Stavová RGB LED](docs/LED.md) |
@@ -58,7 +59,7 @@ Pixelové písmo používa veľké ASCII znaky a nepodporuje diakritiku. Pre slo
 
 ## Stavová LED ESP32
 
-Firmvér 1.3.2 ovláda **externú adresovateľnú RGB LED WS2812/NeoPixel na GPIO18**. Nejde o univerzálne ovládanie vstavanej kontrolky ľubovoľnej dosky.
+Firmvér 2.0.0 ovláda **externú adresovateľnú RGB LED WS2812/NeoPixel na GPIO18**. Nejde o univerzálne ovládanie vstavanej kontrolky ľubovoľnej dosky.
 
 | Farba | Svieti / nesvieti | Význam |
 |---|---|---|
@@ -149,6 +150,8 @@ npm --prefix web ci
 npm --prefix web run build
 ```
 
-Mimo Dockera nainštaluj aj fonty DejaVu. Hostiteľské C++ kontroly a zostavenie firmvéru sú v [ESP32 návode](firmware/README.md). Posledná kontrola zdrojového stavu zahŕňala 163 testov API/provisioningu a konfigurácie Brothera a zostavenie webu. Dokumentačné úpravy samy nespúšťajú tlač ani nahratie firmvéru.
+Mimo Dockera nainštaluj aj fonty DejaVu. Hostiteľské C++ kontroly a zostavenie firmvéru sú v [ESP32 návode](firmware/README.md). Posledná kontrola zdrojového stavu zahŕňala 171 testov API/provisioningu a konfigurácie Brothera a zostavenie webu. Dokumentačné úpravy samy nespúšťajú tlač ani nahratie firmvéru.
 
 MVP podporuje P15 40 × 12 mm a štyri Brother profily: 29/62 mm súvislú pásku s dĺžkou 20–200 mm, 29 × 90 mm a 62 × 100 mm. Brother používa 300 dpi, monochromatickú tlač a voliteľný automatický orez. Rozšírenie vyžaduje firmvér ESP32 1.3.2; prvé nahratie cez USB. Tlač zo štúdia cez ESP32 do Brother QL-810W bola 17. 11. 2026 úspešne fyzicky overená na 29 mm súvislej rolke vrátane QR kódu s popisom (server 0.3.1, firmvér 1.3.2). Detaily a rozsah overenia sú v [Brother návode](docs/BROTHER.md). Všeobecné obrázky, iné médiá, dvojfarebná tlač, oddelené priestory používateľov a hotový RPi agent nie sú súčasťou tejto verzie.
+
+Od servera 0.4.0 a firmvéru 2.0.0 je dostupná aktualizácia ESP32 cez Wi-Fi priamo v **Zariadeniach**. Staršie ESP32 potrebuje jednorazovú USB migráciu na dve aplikačné partície; ďalšie aktualizácie už prebiehajú zo štúdia. [Postup a limity](docs/OTA.md).

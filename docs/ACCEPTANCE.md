@@ -1,6 +1,6 @@
 # Overenie verejnej kópie
 
-- API a USB provisioning: 163 testov prešlo.
+- API a USB provisioning: 171 testov prešlo (164 API + 7 provisioning).
 - Web: TypeScript a produkčné zostavenie prešli.
 - C++ testy Wi-Fi portálu a dekódovania telemetrie prešli.
 
@@ -25,3 +25,11 @@ Prvá úloha z ESP zostala v tlačiarni v stave job-incoming a spool-area-full-r
 Server teraz používa overené poradie inicializácie. ESP navyše odosiela súbor po blokoch a vypína opakované použitie IPP spojenia. Natívny test preveruje celý binárny obsah a prechody medzi IPP hlavičkou a súborom pri rôznych veľkostiach blokov; 156 API testov a 7 provisioning testov prešlo, firmvér sa zostavil.
 
 Dňa 17. 11. 2026 používateľ následne odoslal ďalší štítok priamo zo štúdia cez aktualizované ESP32 do Brother QL-810W a potvrdil správny fyzický výtlačok. Tým je overená celá cesta **štúdio → server 0.3.1 → ESP32 1.3.2 → Brother QL-810W cez Wi-Fi/IPP**, vrátane QR kódu s popisom na 29 mm súvislej rolke. Tlač cez ESP32 je funkčná; ostatné Brother formáty majú zatiaľ softvérové overenie, nie potvrdenú fyzickú skúšku.
+
+## Wi-Fi aktualizácia ESP32 / server 0.4.0, firmvér 2.0.0
+
+Dňa 17. 11. 2026 bola na 4 MB ESP32-D0WDQ6 dokončená jednorazová USB migrácia z jednej veľkej aplikačnej partície na dva OTA sloty a 256 KiB Brother spool. Pred migráciou sa overil prázdny front aj oba lokálne pending záznamy a zálohovala sa pôvodná konfigurácia aj spool. Wi-Fi, P15/Brother nastavenia a údaje aplikácie zostali zachované; oba mosty sa znovu pripojili a Brother potvrdil pripravenosť s 29 mm rolkou.
+
+Následne sa cez živý server zadala reinštalácia rovnakého pripraveného obrazu 2.0.0. Táto inštalácia už prebehla cez Wi-Fi, bez USB nahrávania: zariadenie sa presunulo zo slotu 0 do slotu 1, reštartovalo sa, overilo SHA-256 skutočne bežiaceho obrazu a server označil aktualizáciu ako succeeded. Opätovná telemetria potvrdila slot 1, verziu 2.0.0 a obe online zariadenia. Účty, šablóny a história úloh zostali zhodné so zálohou a po kontrole sa obnovila tlač. Pri OTA overovaní sa neposlal fyzický štítok.
+
+Prešlo 164 API testov vrátane oprávnení/CSRF, limitu a integrity obrazu, izolácie sťahovania, potvrdenia až po reštarte, zrušenia čakajúcej aktualizácie, timeoutu a zachovania stavu po reštarte servera. Overilo sa rozloženie partícií aj kapacita pre najväčšie podporované Brother štítky s rezervou pre súborový systém. Sedem provisioning testov, natívny test blokového IPP prenosu, produkčné zostavenie webu a firmvéru prešli. V izolovanom prehliadači bol overený aktualizačný panel, zadanie aktualizácie a jej zrušenie pred prevzatím. [Postup, ochrana a limity OTA](OTA.md).
