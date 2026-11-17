@@ -103,4 +103,4 @@ Dokončenie Brother IPP úlohy a potvrdenie AA/OK od P15 sú odlišné zdroje st
 
 ## Aktualizácia ESP32
 
-Správca otvorí **Zariadenia → Aktualizácia ESP32 cez Wi-Fi**, pripraví súbor novej verzie a vedome spustí inštaláciu. Tlač sa počas nej dočasne pozastaví; po reštarte aplikácia potvrdí skutočne bežiaci firmvér. [Celý postup](OTA.md).
+Správca otvorí **Aktualizácie → Aktualizácia ESP32 cez Wi-Fi**, pripraví súbor novej verzie a vedome spustí inštaláciu. Tlač sa počas nej dočasne pozastaví; po reštarte aplikácia potvrdí skutočne bežiaci firmvér. [Celý postup](OTA.md).

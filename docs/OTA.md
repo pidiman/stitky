@@ -2,12 +2,12 @@
 
 [Projekt](../README.md) · [ESP32 firmvér](../firmware/README.md) · [LED](LED.md)
 
-Od servera **0.4.0** a firmvéru **2.0.0** môže správca aktualizovať ESP32 priamo v štúdiu, v časti **Zariadenia → Aktualizácia ESP32 cez Wi-Fi**. Aktualizuje sa celý most vrátane podpory P15 a Brothera. ESP32 si firmvér sťahuje cez odchádzajúce overené HTTPS; na routeri sa neotvára nový port a miestny webový aktualizačný server nie je potrebný.
+Od servera **0.4.0** a firmvéru **2.0.0** môže správca aktualizovať ESP32 priamo v štúdiu, v časti **Aktualizácie → Aktualizácia ESP32 cez Wi-Fi**. Aktualizuje sa celý most vrátane podpory P15 a Brothera. ESP32 si firmvér sťahuje cez odchádzajúce overené HTTPS; na routeri sa neotvára nový port a miestny webový aktualizačný server nie je potrebný.
 
 ## Bežná aktualizácia
 
 1. Dokonči alebo zruš všetky čakajúce tlačové úlohy. ESP32 musí byť online.
-2. Otvor **Zariadenia**, vyber aplikačný súbor `.bin` a zadaj jeho verziu. Pri súbore s verziou v názve sa označenie predvyplní.
+2. Otvor **Aktualizácie**, vyber aplikačný súbor `.bin` a zadaj jeho verziu. Pri súbore s verziou v názve sa označenie predvyplní.
 3. Stlač **Pripraviť firmvér**. Server overí produkt, dosku, rozloženie pamäte, veľkosť, segmenty a kontrolné súčty. Tento krok ešte nič neinštaluje.
 4. Vyber hlavné ESP32 a pripravenú verziu. Stlač **Nainštalovať cez Wi-Fi**. Ak P15 aj Brother zdieľajú jedno ESP32, aktualizujú sa spoločne; na výber je hlavný most s podporou OTA.
 5. Nechaj ESP32 zapnuté. Počas sťahovania a zápisu bliká stavová RGB LED bielo, **200 ms svieti / 200 ms nesvieti**. Pri reštarte a opätovnom pripájaní nasleduje bežná žltá indikácia.
