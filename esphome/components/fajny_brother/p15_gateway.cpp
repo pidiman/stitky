@@ -6,6 +6,7 @@
 #include "mbedtls/base64.h"
 #include "mbedtls/sha256.h"
 #include <cstring>
+#include <ctime>
 
 namespace esphome::fajny_brother {
 static std::string p15_encode(const JsonDocument &d){std::string s;serializeJson(d,s);return s;}
@@ -41,6 +42,20 @@ bool FajnyBrother::run_p15_(bool print){
   }
   return true;
 }
+void FajnyBrother::publish_p15_diagnostics_(){
+  P15Diagnostics d;d.available=p15_connected_;d.battery=p15_connected_?p15_battery_:-1;
+  const char *state=!p15_connected_?"Nedostupná":p15_printer_status_=="ready"?"Pripravená":
+    p15_printer_status_=="out_of_paper"?"Chýba papier":p15_printer_status_=="cover_open"?"Otvorený kryt":
+    p15_printer_status_=="overheating"?"Prehriata":p15_printer_status_=="low_battery"?"Slabá batéria":
+    p15_printer_status_=="cover_closed"?"Kryt zatvorený":"Nezistený";
+  snprintf(d.status,sizeof(d.status),"%s",state);
+  snprintf(d.error,sizeof(d.error),"%s",!p15_connected_?"P15 pri kontrole neodpovedala":
+    p15_printer_status_=="unknown"?"Nepodporovaná alebo chýbajúca odpoveď stavu":
+    p15_printer_status_=="ready"||p15_printer_status_=="cover_closed"?"Žiadna":state);
+  time_t now=time(nullptr);struct tm utc{};
+  if(now>=1700000000&&gmtime_r(&now,&utc))strftime(d.checked,sizeof(d.checked),"%Y-%m-%dT%H:%M:%SZ",&utc);
+  xQueueOverwrite(p15_diagnostics_,&d);
+}
 void FajnyBrother::probe_p15_(){
   if(ota_active_||stopping_||!p15_storage_ok_)return;
   p15_refresh_=false;p15_probe_at_=uint32_t(esp_timer_get_time()/1000);p15_battery_=-1;p15_printer_status_="unknown";
@@ -48,6 +63,7 @@ void FajnyBrother::probe_p15_(){
   p15_connected_=p15_link_.result()==P15Link::Probed;
   if(p15_connected_){p15_battery_=p15_link_.battery();p15_printer_status_=p15_link_.printer_status();}
   p15_error_=p15_connected_?"":"P15 unavailable at last BLE check";p15_dirty_=true;
+  publish_p15_diagnostics_();
   p15_status_(!p15_connected_?"P15: NEDOSTUPNA":p15_printer_status_=="ready"?"P15: PRIPRAVENA":p15_printer_status_=="unknown"?"P15: PRIPOJENA":"P15: SKONTROLUJ TLACIAREN");
   if(!ota_active_&&!stopping_)telemetry_p15_();
 }

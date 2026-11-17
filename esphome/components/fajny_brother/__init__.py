@@ -4,10 +4,10 @@ from urllib.parse import urlsplit
 import esphome.codegen as cg
 import esphome.config_validation as cv
 import esphome.final_validate as fv
-from esphome.components import text_sensor, esp32, ble_client, esp32_ble, esp32_ble_tracker
+from esphome.components import sensor, binary_sensor, text_sensor, esp32, ble_client, esp32_ble, esp32_ble_tracker
 from esphome.const import CONF_ID
 DEPENDENCIES = ["esp32", "wifi", "ota"]
-AUTO_LOAD = ["json", "text_sensor"]
+AUTO_LOAD = ["json", "text_sensor", "sensor", "binary_sensor"]
 ns = cg.esphome_ns.namespace("fajny_brother")
 FajnyBrother = ns.class_("FajnyBrother", cg.Component)
 
@@ -36,6 +36,11 @@ P15_SCHEMA = cv.Schema({
     cv.Required("ble_id"): cv.use_id(esp32_ble.ESP32BLE),
     cv.Required("tracker_id"): cv.use_id(esp32_ble_tracker.ESP32BLETracker),
     cv.Optional("status"): text_sensor.text_sensor_schema(),
+    cv.Optional("battery"): sensor.sensor_schema(unit_of_measurement="%", accuracy_decimals=0, device_class="battery", state_class="measurement"),
+    cv.Optional("printer_available"): binary_sensor.binary_sensor_schema(),
+    cv.Optional("printer_status"): text_sensor.text_sensor_schema(),
+    cv.Optional("last_error"): text_sensor.text_sensor_schema(),
+    cv.Optional("last_check"): text_sensor.text_sensor_schema(),
 })
 
 CONFIG_SCHEMA = cv.All(cv.Schema({
@@ -55,8 +60,8 @@ async def to_code(config):
     for key in ("api_url", "agent_token", "printer_host", "max_payload"):
         cg.add(getattr(var,"set_"+key)(config[key]))
     if "status" in config:
-        sensor = await text_sensor.new_text_sensor(config["status"])
-        cg.add(var.set_status_sensor(sensor))
+        status_entity = await text_sensor.new_text_sensor(config["status"])
+        cg.add(var.set_status_sensor(status_entity))
     if "p15" in config:
         conf = config["p15"]
         cg.add_define("USE_FPS_P15")
@@ -65,8 +70,14 @@ async def to_code(config):
         cg.add(var.set_p15_ble(await cg.get_variable(conf["ble_id"])))
         cg.add(var.set_p15_tracker(await cg.get_variable(conf["tracker_id"])))
         if "status" in conf:
-            sensor = await text_sensor.new_text_sensor(conf["status"])
-            cg.add(var.set_p15_status_sensor(sensor))
+            status_entity = await text_sensor.new_text_sensor(conf["status"])
+            cg.add(var.set_p15_status_sensor(status_entity))
+        for key, factory in (("battery", sensor.new_sensor), ("printer_available", binary_sensor.new_binary_sensor),
+                             ("printer_status", text_sensor.new_text_sensor), ("last_error", text_sensor.new_text_sensor),
+                             ("last_check", text_sensor.new_text_sensor)):
+            if key in conf:
+                entity = await factory(conf[key])
+                cg.add(getattr(var, "set_p15_" + key)(entity))
     esp32.add_idf_sdkconfig_option("CONFIG_MBEDTLS_CERTIFICATE_BUNDLE", True)
     esp32.add_idf_sdkconfig_option("CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL", True)
 

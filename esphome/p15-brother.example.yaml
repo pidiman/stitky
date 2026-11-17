@@ -38,3 +38,16 @@ fajny_brother:
     status:
       name: P15 gateway status
       entity_category: diagnostic
+    battery:
+      name: P15 battery
+    printer_available:
+      name: P15 available at last check
+      entity_category: diagnostic
+    printer_status:
+      name: P15 printer status
+    last_error:
+      name: P15 last error
+      entity_category: diagnostic
+    last_check:
+      name: P15 last check
+      entity_category: diagnostic

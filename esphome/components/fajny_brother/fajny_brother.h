@@ -10,10 +10,14 @@
 #include "esphome/components/ota/ota_backend.h"
 #include "brother_ipp.h"
 #include "p15_link.h"
+#ifdef USE_FPS_P15
+#include "esphome/components/sensor/sensor.h"
+#include "esphome/components/binary_sensor/binary_sensor.h"
+#endif
 
 namespace esphome::fajny_brother {
 // Independent release: never install the standalone esp32dev image on ESPHome.
-static constexpr const char *VERSION="esphome-gw-0.2.1";
+static constexpr const char *VERSION="esphome-gw-0.2.2";
 class FajnyBrother : public Component, public ota::OTAGlobalStateListener {
  public:
   void set_api_url(const std::string &v){api_url_=v;}
@@ -31,6 +35,11 @@ class FajnyBrother : public Component, public ota::OTAGlobalStateListener {
   void set_p15_ble(esp32_ble::ESP32BLE *v){p15_ble_=v;}
   void set_p15_tracker(esp32_ble_tracker::ESP32BLETracker *v){p15_tracker_=v;}
   void set_p15_status_sensor(text_sensor::TextSensor *v){p15_sensor_=v;}
+  void set_p15_battery(sensor::Sensor *v){p15_battery_sensor_=v;}
+  void set_p15_printer_available(binary_sensor::BinarySensor *v){p15_available_sensor_=v;}
+  void set_p15_printer_status(text_sensor::TextSensor *v){p15_printer_sensor_=v;}
+  void set_p15_last_error(text_sensor::TextSensor *v){p15_error_sensor_=v;}
+  void set_p15_last_check(text_sensor::TextSensor *v){p15_checked_sensor_=v;}
 #endif
   void setup() override;
   void loop() override;
@@ -49,6 +58,13 @@ class FajnyBrother : public Component, public ota::OTAGlobalStateListener {
   nvs_handle_t nvs_=0;bool pending_=false,storage_ok_=false;
   static void task_entry_(void *arg);
 #ifdef USE_FPS_P15
+  // Copy worker-owned diagnostics into the main ESPHome loop before publishing HA entities.
+  struct P15Diagnostics {int battery=-1;bool available=false;char status[48]{},error[180]{},checked[24]{};};
+  QueueHandle_t p15_diagnostics_=nullptr;
+  sensor::Sensor *p15_battery_sensor_=nullptr;
+  binary_sensor::BinarySensor *p15_available_sensor_=nullptr;
+  text_sensor::TextSensor *p15_printer_sensor_=nullptr,*p15_error_sensor_=nullptr,*p15_checked_sensor_=nullptr;
+  void publish_p15_diagnostics_();
   P15Link p15_link_;ble_client::BLEClient *p15_client_=nullptr;esp32_ble::ESP32BLE *p15_ble_=nullptr;
   esp32_ble_tracker::ESP32BLETracker *p15_tracker_=nullptr;QueueHandle_t p15_messages_=nullptr;
   text_sensor::TextSensor *p15_sensor_=nullptr;std::string p15_token_,p15_last_status_;

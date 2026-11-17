@@ -65,3 +65,9 @@ Stav reálneho overenia je v [akceptačných kontrolách](ACCEPTANCE.md). Novú 
 ### Oprava 0.2.1
 
 Po prenose zostáva BLE spojenie ešte 1,5 sekundy otvorené. Po odpojení klienta nasleduje najmenej 750 ms na spracovanie udalostí; Bluetooth sa nevypína násilne počas odpájania. Neskorá chybová odpoveď zruší úspešný výsledok. Diagnostika uvádza dôvod reštartu, výsledok BLE prenosu a počty prijatých bajtov pri prerušení HTTP bez tokenov či obsahu štítku. Pri prvom pokuse s 0.2.0 vyšiel štítok s oneskorením, čo používateľ potvrdil. Gateway však reštartovala pri ukončovaní Bluetooth a aplikácia bezpečne ponechala výsledok ako neistý bez opakovania. Stabilný návrat po tlači sa musí ešte overiť.
+
+### Údaje P15 priamo v Home Assistante — 0.2.2
+
+Voliteľné položky `battery`, `printer_available`, `printer_status`, `last_error` a `last_check` v sekcii `p15` vytvoria natívne entity ESPHome. Nevyžadujú prístupový kľúč tlačovej aplikácie v HA ani ďalšie HTTP sťahovanie. `status` naďalej ukazuje aktuálnu činnosť a percentá prenosu. [Úplný príklad ESPHome](../esphome/p15-brother.example.yaml), [príklad karty HA](../esphome/home-assistant-p15-card.example.yaml).
+
+Batéria, dostupnosť a stav pochádzajú z poslednej dokončenej BLE kontroly, nie z trvalého spojenia. Kontrola beží po štarte a približne každé dve minúty; pri tlači alebo pomalej sieti sa môže odložiť. Pri neúspešnej kontrole sa batéria zmení na neznámu a dostupnosť na vypnutú; chýbajúca odpoveď sa nevydáva za 0 % ani za pripravenosť. Čas kontroly je presný UTC text ISO 8601, ktorý príklad karty prevádza na miestny čas a ošetruje chýbajúce údaje. Údaje sa medzi pracovnou úlohou a hlavnou slučkou prenášajú kópiou vo fronte; HA entity sa publikujú iba z hlavnej slučky. Priebežná činnosť a údaje poslednej kontroly sú oddelené, aby staré percento batérie nepredstieralo aktuálne BLE spojenie.

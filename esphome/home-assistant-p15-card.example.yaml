@@ -1,0 +1,43 @@
+# Replace my_gateway entity IDs with those registered for your ESPHome device.
+# This card only displays data; it never prints or restarts a device.
+type: vertical-stack
+cards:
+  - type: entities
+    title: P15 · Bluetooth gateway
+    show_header_toggle: false
+    state_color: true
+    entities:
+      - entity: binary_sensor.my_gateway_status
+        name: Pripojenie ESP32
+        icon: mdi:lan-connect
+      - entity: sensor.my_gateway_p15_gateway_status
+        name: Práve sa deje
+        icon: mdi:printer-wireless
+      - entity: sensor.my_gateway_p15_battery
+        name: Batéria P15 pri kontrole
+      - entity: sensor.my_gateway_p15_printer_status
+        name: Stav tlačiarne pri kontrole
+        icon: mdi:printer-check
+      - entity: binary_sensor.my_gateway_p15_available_at_last_check
+        name: P15 dostupná pri kontrole
+        icon: mdi:bluetooth-connect
+      - entity: sensor.my_gateway_p15_last_error
+        name: Chyba pri kontrole
+        icon: mdi:alert-circle-outline
+      - type: weblink
+        name: Otvoriť tlač štítkov
+        url: https://labels.example.com
+        icon: mdi:open-in-new
+  - type: markdown
+    content: >-
+      {% set checked = as_datetime(states('sensor.my_gateway_p15_last_check'), none) %}
+      {% if checked is not none %}
+      **Posledná kontrola P15:** {{ as_local(checked).strftime('%d.%m.%Y %H:%M:%S') }}
+      {% if (as_timestamp(now()) - as_timestamp(checked)) > 300 %}
+      ⚠️ Údaje sú staršie ako 5 minút.
+      {% endif %}
+      {% else %}
+      **Posledná kontrola P15:** čakám na údaje.
+      {% endif %}
+
+      Priebeh tlače sa mení priebežne. Batéria a dostupnosť sa kontrolujú približne každé 2 minúty.

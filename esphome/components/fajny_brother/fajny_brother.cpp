@@ -13,6 +13,7 @@
 #include <cstring>
 #include <ctime>
 #include <memory>
+#include <cmath>
 #ifdef USE_FPS_P15
 #include "mbedtls/base64.h"
 #endif
@@ -43,7 +44,8 @@ void FajnyBrother::setup(){
   messages_=xQueueCreate(1,96);
 #ifdef USE_FPS_P15
   p15_messages_=xQueueCreate(1,96);
-  if(!p15_messages_||!p15_client_||!p15_ble_||!p15_tracker_){mark_failed();return;}
+  p15_diagnostics_=xQueueCreate(1,sizeof(P15Diagnostics));
+  if(!p15_diagnostics_||!p15_messages_||!p15_client_||!p15_ble_||!p15_tracker_){mark_failed();return;}
   p15_link_.configure(p15_client_,p15_ble_,p15_tracker_,p15_messages_);
 #endif
   if(!messages_||xTaskCreate(task_entry_,"fajny-brother",8192,this,1,&task_)!=pdPASS){mark_failed();return;}
@@ -52,6 +54,14 @@ void FajnyBrother::loop(){
   connected_=network::is_connected();char text[96];
 #ifdef USE_FPS_P15
   p15_link_.tick(stopping_||ota_active_||!connected_);
+  P15Diagnostics diagnostic;
+  if(p15_diagnostics_&&xQueueReceive(p15_diagnostics_,&diagnostic,0)==pdTRUE){
+    if(p15_battery_sensor_)p15_battery_sensor_->publish_state(diagnostic.battery>=0?float(diagnostic.battery):NAN);
+    if(p15_available_sensor_)p15_available_sensor_->publish_state(diagnostic.available);
+    if(p15_printer_sensor_)p15_printer_sensor_->publish_state(diagnostic.status);
+    if(p15_error_sensor_)p15_error_sensor_->publish_state(diagnostic.error);
+    if(p15_checked_sensor_)p15_checked_sensor_->publish_state(diagnostic.checked);
+  }
   if(p15_messages_&&xQueueReceive(p15_messages_,text,0)==pdTRUE&&p15_last_status_!=text){
     p15_last_status_=text;ESP_LOGI(TAG,"%s",text);if(p15_sensor_)p15_sensor_->publish_state(text);
   }
